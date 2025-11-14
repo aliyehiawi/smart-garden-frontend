@@ -101,7 +101,7 @@ export const useSensorStore = defineStore('sensors', () => {
       pumpStatus.value.mode = 'manual'
     }
     
-    // TODO: Send command to ali (backend/device)
+    // TODO: Send command to backend/device (ali)
     console.log('Pump status:', pumpStatus.value.isRunning ? 'ON' : 'OFF')
   }
 
@@ -112,6 +112,7 @@ export const useSensorStore = defineStore('sensors', () => {
         temperature: (Math.random() * 15 + 18).toFixed(1),
         humidity: (Math.random() * 40 + 40).toFixed(1),
         soilMoisture: (Math.random() * 50 + 25).toFixed(1),
+
       })
     }, 3000) // Update every 3 seconds
   }
