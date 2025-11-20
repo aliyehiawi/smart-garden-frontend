@@ -1,28 +1,54 @@
 <template>
-  <div class="login-card">
-    <div class="login-brand">
-      <span class="brand-icon">🌱</span>
-      <h1>SmartGarden</h1>
-    </div>
-    
-    <form @submit.prevent="handleLogin" class="login-form">
-      <div class="form-group">
-        <label>Username</label>
-        <input v-model="username" type="text" required placeholder="Enter your username" />
+  <div class="login-page" :style="pageStyle">
+    <header class="top-nav">
+      <div class="nav-left">
+        <span class="brand-icon">🌱</span>
+        <span class="brand-name">SmartGarden</span>
       </div>
-      
-      <div class="form-group">
-        <label>Password</label>
-        <input v-model="password" type="password" required placeholder="Enter your password" />
+    </header>
+
+    <div class="login-center">
+      <div class="login-card">
+        <div class="login-brand">
+          <span class="brand-icon-large">🌱</span>
+          <h1>Login</h1>
+        </div>
+
+        <form @submit.prevent="handleLogin" class="login-form">
+          <div class="form-group">
+            <input v-model="username" type="text" required placeholder="Username" />
+          </div>
+
+          <div class="form-group">
+            <input v-model="password" type="password" required placeholder="Password" />
+          </div>
+
+          <div class="actions-row">
+            <button type="submit" class="btn-primary">Login</button>
+          </div>
+
+          <div class="actions-row">
+            <button type="submit" class="btn-primary">Sign Up</button>
+          </div>
+
+          <p v-if="error" class="error">{{ error }}</p>
+
+          <div class="divider"><span>or sign up with</span></div>
+
+          <div class="social-row">
+            <button type="button" class="social facebook" aria-label="Sign up with Facebook">
+              <img :src="facebookLogo" alt="Facebook" class="social-icon" />
+            </button>
+            <button type="button" class="social google" aria-label="Sign up with Google">
+              <img :src="googleLogo" alt="Google" class="social-icon" />
+            </button>
+          </div>
+        </form>
+
+        <div class="demo-credentials">
+          <small>Demo credentials: <strong>admin/admin</strong> or <strong>user/user</strong></small>
+        </div>
       </div>
-      
-      <button type="submit" class="btn-login">Login to Dashboard</button>
-      
-      <p v-if="error" class="error">{{ error }}</p>
-    </form>
-    
-    <div class="demo-credentials">
-      <small>Demo: <strong>admin/admin</strong> or <strong>user/user</strong></small>
     </div>
   </div>
 </template>
@@ -31,6 +57,9 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import bg from '@/assets/garden-bg.png'
+import facebookLogo from '@/assets/Facebook_Logo.png.webp'
+import googleLogo from '@/assets/Google__G__logo.svg.png'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -38,6 +67,13 @@ const authStore = useAuthStore()
 const username = ref('')
 const password = ref('')
 const error = ref('')
+
+const pageStyle = {
+  backgroundImage: `url(${bg})`,
+  backgroundSize: 'cover',
+  backgroundPosition: 'center',
+  minHeight: '100vh'
+}
 
 function handleLogin() {
   const success = authStore.login({
@@ -54,94 +90,66 @@ function handleLogin() {
 </script>
 
 <style scoped>
+.login-page {
+  min-height: 100vh;
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  flex-direction: column;
+}
+
+.top-nav {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+}
+
+.login-center {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .login-card {
-  background: white;
-  padding: 3rem;
-  border-radius: 20px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  width: 100%;
-  max-width: 450px;
-}
-
-.login-brand {
-  text-align: center;
-  margin-bottom: 2.5rem;
-}
-
-.brand-icon {
-  font-size: 4rem;
-  display: block;
-  margin-bottom: 1rem;
-}
-
-.login-brand h1 {
-  font-size: 2rem;
-  color: #4caf50;
-  margin: 0;
-  font-weight: 700;
-}
-
-.login-form {
+  width: 340px;
+  min-height: 400px;
+  padding: 32px;
+  border-radius: 18px;
+  background: rgba(255,255,255,0.08);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 10px 30px rgba(2,6,23,0.25);
+  border: 1px solid rgba(255,255,255,0.12);
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  justify-content: space-between;
 }
 
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
+.login-brand { text-align:center; margin-bottom: 0.75rem }
+.brand-icon-large { font-size: 48px; display:block; margin-bottom: 8px }
+.login-brand h1 { color: white; font-size: 28px; margin: 0 }
+.login-brand .subtext { color: rgba(255,255,255,0.8); font-size: 13px; margin-top: 8px }
 
-.form-group label {
-  font-weight: 600;
-  color: #333;
-  font-size: 0.9rem;
-}
+.login-form { display:flex; flex-direction:column; gap: 18px }
+.form-group input { padding: 12px 10px; border: none; border-bottom: 1px solid rgba(255,255,255,0.18); background: transparent; color: #fff; height: 42px; font-size: 15px }
+.form-group input::placeholder { color: rgba(255,255,255,0.7) }
 
-.form-group input {
-  padding: 1rem;
-  border: 2px solid #e5e7eb;
-  border-radius: 10px;
-  font-size: 1rem;
-  transition: all 0.3s;
-}
+.actions-row { display:flex; gap: 12px }
+.btn-primary { width: 100%; background: #34A853; color: white; border: none; padding: 12px 16px; border-radius: 24px; font-weight: 700; font-size: 16px }
 
-.form-group input:focus {
-  outline: none;
-  border-color: #4caf50;
-  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
-}
+.divider { display:flex; align-items:center; gap: 12px; margin-top: 6px }
+.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.12) }
+.divider span { font-size: 12px; color: rgba(255,255,255,0.7); padding: 0 8px }
 
-.btn-login {
-  padding: 1rem;
-  background: linear-gradient(135deg, #4caf50, #43a047);
-  color: white;
-  border: none;
-  border-radius: 10px;
-  font-size: 1.rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
-}
+.social-row { display:flex; gap: 16px; justify-content: center; margin-top: 6px }
+.social { width: 36px; height: 36px; border-radius: 50%; border: none; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; cursor: pointer }
+.social.facebook { background: #1877F2; color: white }
+.social.google { background: white; color: white }
 
-.btn-login:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 25px rgba(76, 175, 80, 0.3);
-}
+.social-icon { width: 18px; height: 18px; display: block }
 
-.error {
-  color: #ef4444;
-  text-align: center;
-  font-size: 0.9rem;
-  margin: 0;
-}
-
-.demo-credentials {
-  text-align: center;
-  margin-top: 2rem;
-  padding-top: 2rem;
-  border-top: 1px solid #e5e7eb;
-  color: #6b7280;
-}
+.error { color: #f12525; text-align:center }
+.demo-credentials { text-align:center; margin-top: 12px; color: rgba(255,255,255,0.8) }
 </style>
