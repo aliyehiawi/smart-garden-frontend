@@ -1,55 +1,64 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+import LoginView from '../views/LoginView.vue'
+import DashboardView from '../views/DashboardView.vue'
+import { useAuthStore } from '../stores/auth'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
+      path: '/',
+      redirect: '/login'
+    },
+    {
       path: '/login',
       name: 'login',
-      component: () => import('../views/LoginView.vue'),
+      component: LoginView
     },
     {
-      path: '/',
+      path: '/dashboard',
       name: 'dashboard',
-      component: () => import('../views/DashboardView.vue'),
-      meta: { requiresAuth: true },
-    },
-    {
-      path: '/charts',
-      name: 'charts',
-      component: () => import('../views/ChartsView.vue'),
-      meta: { requiresAuth: true },
-    },
-    {
-      path: '/devices',
-      name: 'devices',
-      component: () => import('../views/DevicesView.vue'),
-      meta: { requiresAuth: true, requiresAdmin: true },
-    },
-    {
-      path: '/users',
-      name: 'users',
-      component: () => import('../views/UsersView.vue'),
-      meta: { requiresAuth: true, requiresAdmin: true },
-    },
-    {
-      path: '/pump',
-      name: 'pump',
-      component: () => import('../views/PumpControlView.vue'),
-      meta: { requiresAuth: true, requiresAdmin: true },
-    },
-  ],
+      component: DashboardView,
+      meta: { requiresAuth: true }
+    }
+  ]
 })
 
-// Navigation guard
+// navigation guard 
 router.beforeEach((to, from, next) => {
   const authStore = useAuthStore()
+  
+  // Check if route requires authentication
+  if (to.meta.requiresAuth) {
+    if (!authStore.isAuthenticated) {
+      next('/login')
+      return
+    }
 
-  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    next({ name: 'login' })
-  } else if (to.meta.requiresAdmin && !authStore.isAdmin) {
-    next({ name: 'dashboard' })
+    // Validate JWT token 
+    if (authStore.token) {
+      try {
+        const payload = authStore.decodeJWT(authStore.token)
+        const now = Math.floor(Date.now() / 1000)
+        
+        // Check if token is expired
+        if (payload.exp && payload.exp < now) {
+          console.warn('Token expired, logging out')
+          authStore.logout()
+          next('/login')
+          return
+        }
+      } catch (error) {
+        console.error('Invalid token, logging out')
+        authStore.logout()
+        next('/login')
+        return
+      }
+    }
+    
+    next()
+  } else if (to.path === '/login' && authStore.isAuthenticated) {
+    next('/dashboard')
   } else {
     next()
   }

@@ -1,155 +1,354 @@
 <template>
-  <div class="login-page" :style="pageStyle">
-    <header class="top-nav">
-      <div class="nav-left">
+  <div class="login-container">
+    <div class="login-card">
+      <div class="login-brand">
         <span class="brand-icon">🌱</span>
-        <span class="brand-name">SmartGarden</span>
+        <h1>SmartGarden</h1>
+        <p>IoT Water Level Monitoring System</p>
       </div>
-    </header>
 
-    <div class="login-center">
-      <div class="login-card">
-        <div class="login-brand">
-          <span class="brand-icon-large">🌱</span>
-          <h1>Login</h1>
+      <!-- Login Form -->
+      <form @submit.prevent="handleLogin" class="auth-form">
+        <div class="form-group">
+          <label>Username</label>
+          <input 
+            v-model="loginForm.username" 
+            type="text" 
+            required 
+            placeholder="Enter your username"
+            autocomplete="username"
+          />
         </div>
 
-        <form @submit.prevent="handleLogin" class="login-form">
-          <div class="form-group">
-            <input v-model="username" type="text" required placeholder="Username" />
-          </div>
-
-          <div class="form-group">
-            <input v-model="password" type="password" required placeholder="Password" />
-          </div>
-
-          <div class="actions-row">
-            <button type="submit" class="btn-primary">Login</button>
-          </div>
-
-          <div class="actions-row">
-            <button type="submit" class="btn-primary">Sign Up</button>
-          </div>
-
-          <p v-if="error" class="error">{{ error }}</p>
-
-          <div class="divider"><span>or sign up with</span></div>
-
-          <div class="social-row">
-            <button type="button" class="social facebook" aria-label="Sign up with Facebook">
-              <img :src="facebookLogo" alt="Facebook" class="social-icon" />
-            </button>
-            <button type="button" class="social google" aria-label="Sign up with Google">
-              <img :src="googleLogo" alt="Google" class="social-icon" />
-            </button>
-          </div>
-        </form>
-
-        <div class="demo-credentials">
-          <small>Demo credentials: <strong>admin/admin</strong> or <strong>user/user</strong></small>
+        <div class="form-group">
+          <label>Password</label>
+          <input 
+            v-model="loginForm.password" 
+            type="password" 
+            required 
+            placeholder="Enter your password"
+            autocomplete="current-password"
+          />
         </div>
+
+        <div class="form-group remember-row">
+          <label class="remember-label">
+            <input type="checkbox" v-model="rememberMe" />
+            Remember me
+          </label>
+        </div>
+
+        <button type="submit" class="btn-primary" :disabled="isLoading">
+          {{ isLoading ? 'Logging in...' : 'Login' }}
+        </button>
+
+        <p v-if="successMessage" class="success-message">{{ successMessage }}</p>
+        <p v-if="error" class="error-message">{{ error }}</p>
+      </form>
+
+      <!-- Demo Credentials -->
+      <div class="demo-credentials">
+        <small>Demo: <strong>admin/admin</strong> or <strong>user/user</strong></small>
       </div>
+      <p class="demo-note">
+    💡 Admins can register new users from the Dashboard
+      </p>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import bg from '@/assets/garden-bg.png'
-import facebookLogo from '@/assets/Facebook_Logo.png.webp'
-import googleLogo from '@/assets/Google__G__logo.svg.png'
 
 const router = useRouter()
 const authStore = useAuthStore()
 
-const username = ref('')
-const password = ref('')
+const isLoading = ref(false)
 const error = ref('')
+const successMessage = ref('')
+const rememberMe = ref(false)
 
-const pageStyle = {
-  backgroundImage: `url(${bg})`,
-  backgroundSize: 'cover',
-  backgroundPosition: 'center',
-  minHeight: '100vh'
-}
+const loginForm = ref({
+  username: '',
+  password: ''
+})
 
-function handleLogin() {
-  const success = authStore.login({
-    username: username.value,
-    password: password.value,
-  })
+// if user previously chose to be remembered
+onMounted(() => {
+  try {
+    const remembered = localStorage.getItem('rememberMe') === 'true'
+    if (remembered) {
+      rememberMe.value = true
+      loginForm.value.username = localStorage.getItem('rememberUsername') || ''
+    }
+  } catch (e) {
+    console.warn('localStorage not available:', e)
+  }
+})
 
-  if (success) {
-    router.push({ name: 'dashboard' })
-  } else {
-    error.value = 'Invalid credentials'
+async function handleLogin() {
+  error.value = ''
+  successMessage.value = ''
+  isLoading.value = true
+
+  try {
+    // ============================================================
+    // TODO: BACKEND API - LOGIN ENDPOINT
+    // ============================================================
+    // Replace this mock login with real API call from backend partner
+    // 
+    // Expected API:
+    //   POST /api/auth/login
+    //   Body: { username: string, password: string }
+    //   Response: { 
+    //     token: string (JWT),
+    //     user: { id, username, role, email }
+    //   }
+    //
+    // Uncomment and update this when backend is ready:
+    /*
+    const response = await fetch('http://localhost:8080/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: loginForm.value.username,
+        password: loginForm.value.password
+      })
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.message || 'Invalid credentials')
+    }
+
+    const data = await response.json()
+    
+    // Store the JWT token
+    authStore.token = data.token
+    authStore.user = data.user
+    localStorage.setItem('authToken', data.token)
+    localStorage.setItem('user', JSON.stringify(data.user))
+    
+    successMessage.value = 'Login successful! Redirecting...'
+    */
+    // ============================================================
+    // END TODO: Remove mock login below when real API is ready
+    // ============================================================
+
+    // MOCK LOGIN - REMOVE THIS BLOCK WHEN BACKEND IS READY
+    const success = authStore.login({
+      username: loginForm.value.username,
+      password: loginForm.value.password
+    })
+
+    if (!success) {
+      error.value = 'Invalid username or password'
+      return
+    }
+    
+    successMessage.value = 'Login successful! Redirecting...'
+    // END MOCK LOGIN
+
+    // Remember username (keep this regardless of mock/real)
+    if (rememberMe.value) {
+      localStorage.setItem('rememberMe', 'true')
+      localStorage.setItem('rememberUsername', loginForm.value.username)
+    } else {
+      localStorage.removeItem('rememberMe')
+      localStorage.removeItem('rememberUsername')
+    }
+
+    // Redirect to dashboard
+    setTimeout(() => {
+      router.push('/dashboard')
+    }, 500)
+
+  } catch (err) {
+    error.value = (err.message || 'An error occurred. Please try again.')
+    console.error('Login error:', err)
+  } finally {
+    isLoading.value = false
   }
 }
+
 </script>
 
 <style scoped>
-.login-page {
-  min-height: 100vh;
-  background-size: cover;
-  background-position: center;
+.login-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
-  flex-direction: column;
-}
-
-.top-nav {
-  height: 64px;
-  display: flex;
-  align-items: center;
-  padding: 0 24px;
-}
-
-.login-center {
-  flex: 1;
-  display: flex;
-  align-items: center;
   justify-content: center;
+  align-items: center;
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+  padding: 20px;
+  overflow-y: auto;
 }
 
 .login-card {
-  width: 340px;
-  min-height: 400px;
-  padding: 32px;
-  border-radius: 18px;
-  background: rgba(255,255,255,0.08);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  box-shadow: 0 10px 30px rgba(2,6,23,0.25);
-  border: 1px solid rgba(255,255,255,0.12);
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
+  background: white;
+  padding: 2.5rem;
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  width: 100%;
+  max-width: 450px;
 }
 
-.login-brand { text-align:center; margin-bottom: 0.75rem }
-.brand-icon-large { font-size: 48px; display:block; margin-bottom: 8px }
-.login-brand h1 { color: white; font-size: 28px; margin: 0 }
-.login-brand .subtext { color: rgba(255,255,255,0.8); font-size: 13px; margin-top: 8px }
+.login-brand {
+  text-align: center;
+  margin-bottom: 2rem;
+}
 
-.login-form { display:flex; flex-direction:column; gap: 18px }
-.form-group input { padding: 12px 10px; border: none; border-bottom: 1px solid rgba(255,255,255,0.18); background: transparent; color: #fff; height: 42px; font-size: 15px }
-.form-group input::placeholder { color: rgba(255,255,255,0.7) }
+.brand-icon {
+  font-size: 4rem;
+  display: block;
+  margin-bottom: 1rem;
+}
 
-.actions-row { display:flex; gap: 12px }
-.btn-primary { width: 100%; background: #34A853; color: white; border: none; padding: 12px 16px; border-radius: 24px; font-weight: 700; font-size: 16px }
+.login-brand h1 {
+  font-size: 2rem;
+  color: #10B981;
+  margin: 0 0 0.5rem 0;
+  font-weight: 700;
+}
 
-.divider { display:flex; align-items:center; gap: 12px; margin-top: 6px }
-.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.12) }
-.divider span { font-size: 12px; color: rgba(255,255,255,0.7); padding: 0 8px }
+.login-brand p {
+  color: #6B7280;
+  font-size: 0.95rem;
+}
 
-.social-row { display:flex; gap: 16px; justify-content: center; margin-top: 6px }
-.social { width: 36px; height: 36px; border-radius: 50%; border: none; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; cursor: pointer }
-.social.facebook { background: #1877F2; color: white }
-.social.google { background: white; color: white }
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
 
-.social-icon { width: 18px; height: 18px; display: block }
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
 
-.error { color: #f12525; text-align:center }
-.demo-credentials { text-align:center; margin-top: 12px; color: rgba(255,255,255,0.8) }
+.form-group label {
+  font-weight: 600;
+  color: #374151;
+  font-size: 0.9rem;
+}
+
+.form-group input {
+  padding: 0.875rem;
+  border: 2px solid #E5E7EB;
+  border-radius: 10px;
+  font-size: 1rem;
+  transition: all 0.3s;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #10B981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.remember-row {
+  display: flex;
+  align-items: center;
+}
+
+.remember-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  color: #374151;
+}
+
+.remember-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #10B981;
+}
+
+.btn-primary {
+  padding: 1rem;
+  background: linear-gradient(135deg, #10B981, #059669);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error-message {
+  color: #DC2626;
+  text-align: center;
+  font-size: 0.9rem;
+  margin: 0;
+  padding: 0.75rem;
+  background: #FEE2E2;
+  border-radius: 8px;
+}
+
+.success-message {
+  color: #059669;
+  text-align: center;
+  font-size: 0.9rem;
+  margin: 0;
+  padding: 0.75rem;
+  background: #D1FAE5;
+  border-radius: 8px;
+}
+
+.demo-credentials {
+  text-align: center;
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid #E5E7EB;
+  color: #6B7280;
+}
+
+.demo-note {
+  text-align: center;
+  font-size: 0.65rem;
+  color: #6B7280;
+;
+  margin: 0;
+  padding: 0.75rem;
+  background: #f0efef;
+  border-radius: 8px;
+}
+
+@media (max-width: 600px) {
+  .login-card {
+    padding: 2rem 1.5rem;
+  }
+
+@media (min-width: 1024px) {
+  .login-container {
+    justify-content: center !important;
+    align-items: center !important;
+  }
+  
+  .login-card {
+    margin: 0 auto;
+  }
+}
+
+}
 </style>

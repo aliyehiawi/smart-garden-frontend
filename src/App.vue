@@ -1,14 +1,13 @@
 <template>
   <div id="app">
-    <!-- Login Page -->
-    <div v-if="$route.name === 'login'" class="login-container">
+    <!-- Login Page (Full Screen) -->
+    <div v-if="$route.path === '/login'" class="login-wrapper">
       <RouterView />
     </div>
 
-    <!-- Dashboard Layout (NO Right Sidebar) -->
+    <!-- Dashboard Layout (with Sidebar) -->
     <div v-else class="dashboard-layout">
       <Sidebar />
-      
       <main class="main-content">
         <RouterView />
       </main>
@@ -24,12 +23,8 @@ import Sidebar from '@/components/Sidebar.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
-
-function logout() {
-  authStore.logout()
-  router.push({ name: 'login' })
-}
 </script>
+
 <style>
 * {
   margin: 0;
@@ -55,6 +50,12 @@ body {
   background: linear-gradient(135deg, #4caf50 0%, #43a047 100%);
 }
 
+.login-wrapper {
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}
+
 .dashboard-layout {
   display: flex;
   height: 100vh;
@@ -63,15 +64,15 @@ body {
 
 .main-content {
   flex: 1;
-  margin-left: 60px; /* Space for collapsed sidebar */
+  margin-left: 80px; 
   height: 100vh;
   overflow-y: auto;
   background: #DCECD6;
   transition: margin-left 0.3s ease;
-  /* center fixed-size dashboard inside main content */
   display: flex;
   justify-content: center;
   align-items: flex-start;
+  padding: 2rem;
 }
 
 /* Scrollbar Styling */
@@ -92,7 +93,7 @@ body {
   background: #6B7280;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 2024px) {
   .main-content {
     margin-left: 0;
   }
