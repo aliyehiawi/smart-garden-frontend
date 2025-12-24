@@ -1,57 +1,33 @@
 <template>
   <aside class="sidebar" :class="{ expanded: isExpanded }" @mouseenter="isExpanded = true" @mouseleave="isExpanded = false">
     <!-- Brand Logo -->
-    <router-link to="/" title="SmartGarden" class="brand-link">
+    <div class="brand-link">
       <span class="brand-icon">🌱</span>
       <span class="nav-text" v-if="isExpanded">SmartGarden</span>
-    </router-link>
+    </div>
 
     <!-- Navigation Items -->
     <nav class="sidebar-nav">
-      <router-link to="/" class="nav-item" title="Dashboard">
+      <!-- Dashboard (All Users) - Only active page -->
+      <div class="nav-item active">
         <img :src="home" alt="dashboard" class="nav-icon" />
         <span class="nav-text" v-if="isExpanded">Dashboard</span>
-      </router-link>
-
-      <router-link to="/charts" class="nav-item" title="Calendar">
-        <img :src="calendar" alt="calendar" class="nav-icon" />
-        <span class="nav-text" v-if="isExpanded">Calendar</span>
-      </router-link>
-
-      <router-link to="/devices" class="nav-item" v-if="authStore.isAdmin" title="Analytics">
-        <img :src="barChart" alt="analytics" class="nav-icon" />
-        <span class="nav-text" v-if="isExpanded">Analytics</span>
-      </router-link>
-
-      <button class="nav-item" title="Time" @click="$router.push('/time')">
-        <img :src="clock" alt="time" class="nav-icon" />
-        <span class="nav-text" v-if="isExpanded">Time</span>
-      </button>
-
-      <router-link to="/users" class="nav-item" v-if="authStore.isAdmin" title="Users">
-        <img :src="user" alt="users" class="nav-icon" />
-        <span class="nav-text" v-if="isExpanded">Users</span>
-      </router-link>
-
-      <button class="nav-item" @click="openSettings" title="Settings">
-        <img :src="settings" alt="settings" class="nav-icon" />
-        <span class="nav-text" v-if="isExpanded">Settings</span>
-      </button>
+      </div>
     </nav>
 
     <!-- Footer Section -->
     <div class="sidebar-footer">
-      <div class="user-avatar" @click="showUserMenu" title="Profile">
+      <!-- User Avatar -->
+      <div class="user-section" @click="showUserInfo" title="Click for account info">
         <div class="avatar-letter">{{ getUserInitial() }}</div>
+        <div class="user-details" v-if="isExpanded">
+          <p class="user-name">{{ authStore.user?.username }}</p>
+        </div>
       </div>
 
-      <button class="nav-item add-button" title="Add New" @click="addNew">
-        <img :src="post" alt="add" class="nav-icon add-icon" />
-        <span class="nav-text" v-if="isExpanded">Add New</span>
-      </button>
-
-      <button class="nav-item logout-button" title="Logout" @click="handleLogout">
-        <img :src="logout" alt="logout" class="nav-icon add-icon" />
+      <!-- Logout Button -->
+      <button class="logout-button" :title="isExpanded ? 'Logout' : 'Logout'" @click="handleLogout">
+        <img :src="logout" alt="logout" class="nav-icon" />
         <span class="nav-text" v-if="isExpanded">Logout</span>
       </button>
     </div>
@@ -59,51 +35,71 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+
+// Import icons
 import home from '@/assets/home.png'
-import calendar from '@/assets/calendar.png'
-import barChart from '@/assets/bar-chart.png'
-import clock from '@/assets/clock.png'
-import user from '@/assets/user.png'
-import settings from '@/assets/settings.png' 
-import post from '@/assets/post.png'
 import logout from '@/assets/logout.png'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const isExpanded = ref(false)
 
+const displayName = computed(() => {
+  const role = authStore.user?.role
+  return role ? role.charAt(0).toUpperCase() + role.slice(1) : ''
+})
+
 function getUserInitial() {
   const username = authStore.user?.username || 'U'
   return username.charAt(0).toUpperCase()
 }
 
-function showUserMenu() {
-  router.push('/profile')
-}
+function showUserInfo() {
+  if (authStore.user?.role === 'Admin') {
+    // Admin info with controls
+    alert(`👤 Admin Account
+    
+Username: ${authStore.user?.username}
+Role: Administrator
 
-function handleLogout() {
-  const confirmed = confirm('Are you sure you want to logout?')
-  if (confirmed) {
-    authStore.logout()
-    router.push('/login')
+📋 Admin Controls Available:
+✓ Pump Control
+✓ User Management  
+✓ Device Registration
+✓ Threshold Settings
+
+All controls are available in the Dashboard below.`)
+  } else {
+    // Regular user info
+    alert(`👤 User Account
+    
+Username: ${authStore.user?.username}
+Role: Read-Only User
+
+📋 You have access to:
+✓ View Dashboard
+✓ View Live Data
+✓ View Historical Charts
+✓ View Water Level History`)
   }
 }
 
-function openSettings() {
-  router.push('/settings')
-}
-
-function addNew() {
-  alert('Add new feature coming soon!')
+async function handleLogout() {
+  const confirmed = confirm('Are you sure you want to logout?')
+  if (confirmed) {
+    authStore.logout()
+    await router.push('/login')
+    window.location.reload()
+  }
 }
 </script>
 
 <style scoped>
 .sidebar {
-  width: 80px;
+  width: 60px;
   height: 100vh;
   background: #FFFFFF;
   border-right: 1px solid #E5E7EB;
@@ -120,22 +116,25 @@ function addNew() {
 }
 
 .sidebar.expanded {
-  width: 240px;
-}
+    width: 210px;
+    box-shadow: 4px 0 12px rgba(0, 0, 0, 0.1);
+  }
 
 .brand-link {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   width: 100%;
   padding: 0 16px;
-  text-decoration: none;
   color: #16A34A;
-  margin-bottom: 24px;
+  margin-bottom: 30px;
+  font-weight: 700;
+  font-size: 18px;
+  cursor: default;
 }
 
 .brand-icon {
-  font-size: 28px;
+  font-size: 26px;
   flex-shrink: 0;
 }
 
@@ -146,7 +145,7 @@ function addNew() {
   align-items: flex-start;
   gap: 8px;
   overflow-y: auto;
-  padding: 0 16px;
+  padding: 0 10px;
   width: 100%;
 }
 
@@ -156,39 +155,69 @@ function addNew() {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 12px;
+  padding: 0 8px;
   border-radius: 12px;
-  background: transparent;
-  border: none;
-  color: #6B7280;
-  text-decoration: none;
+  background: #FFFFFF;
+  color: #374151;
+  border: 2px solid #E5E7EB;
   cursor: pointer;
-  transition: all 0.2s ease;
-  position: relative;
+  transition: all 0.2s;
+  font-weight: 600;
   white-space: nowrap;
 }
-
 .nav-item:hover {
-  background: #F3F4F6;
-}
-
-.nav-item.router-link-active {
-  background: #DCFCE7;
+  border-color: #16A34A;
   color: #16A34A;
+  transform: translateX(-2px);
 }
 
-.nav-item.router-link-active::before {
-  content: '';
-  position: absolute;
-  left: -16px;
-  width: 4px;
-  height: 24px;
-  background: #22C55E;
-  border-radius: 0 4px 4px 0;
+.info-item {
+  width: 100%;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+  border-radius: 8px;
+  background: #F9FAFB;
+  color: #6B7280;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.role-indicator {
+  background: linear-gradient(135deg, #EDE9FE, #DDD6FE);
+  color: #6B21A8;
+  font-weight: 600;
+  margin-top: 8px;
+}
+
+.role-indicator.admin {
+  background: linear-gradient(135deg, #DBEAFE, #BFDBFE);
+  color: #1E40AF;
+}
+
+.role-badge {
+  font-size: 18px;
+}
+
+.section-divider {
+  width: 100%;
+  margin: 12px 0 8px 0;
+  padding: 0 12px;
+}
+
+.divider-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: #9CA3AF;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .nav-icon {
-  width: 20px;
+  width: 30px;
   height: 20px;
   flex-shrink: 0;
   object-fit: contain;
@@ -208,57 +237,79 @@ function addNew() {
 .sidebar-footer {
   display: flex;
   flex-direction: column;
-  align-items: center;
   gap: 12px;
-  padding-top: 16px;
+  padding-top: 2px;
   border-top: 1px solid #E5E7EB;
   width: 100%;
-  padding-left: 16px;
-  padding-right: 16px;
+  padding: 10px;
 }
 
-.user-avatar {
+.user-section {
+  width: 100%;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0;
+  border-radius: 12px;
+  background: #FFFFFF;
+  color: #374151;
+  border: 2px solid #E5E7EB;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
-.user-avatar:hover {
-  transform: scale(1.08);
+.user-section:hover {
+  border-color: #16A34A;
+  color: #16A34A;
+    transform: translateY(-2px);
 }
 
 .avatar-letter {
-  width: 46px;
-  height: 46px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   background: linear-gradient(135deg, #10B981, #34D399);
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
-  border: 2px solid #E5E7EB;
+  border: 3px solid #E5E7EB;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
 }
 
-.add-button {
-  background: #DCFCE7 !important;
-}
-
-.add-button:hover {
-  background: #9df0ba !important;
+.user-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .logout-button {
-  background: #FEE2E2 !important;
+  width: 100%;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 9px;
+  border-radius: 12px;
+  background: #FFFFFF;
+  color: #374151;
+  border: 2px solid #E5E7EB;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .logout-button:hover {
-  background: #FECACA !important;
-}
-
-.add-icon {
-  width: 20px;
-  height: 20px;
+  border-color: #EF4444;
+  color: #EF4444;
+  transform: translateX(2px);
 }
 
 /* Scrollbar */
@@ -275,13 +326,9 @@ function addNew() {
   border-radius: 2px;
 }
 
-@media (max-width: 1024px) {
-  .sidebar {
-    transform: translateX(-100%);
-  }
-  
-  .sidebar.expanded {
-    transform: translateX(0);
-  }
+.sidebar-nav::-webkit-scrollbar-thumb:hover {
+  background: #D1D5DB;
 }
+  
+
 </style>

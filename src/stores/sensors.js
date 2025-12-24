@@ -1,133 +1,137 @@
+// ============================================================
+// TODO: BACKEND API - Replace mock data with real API calls
+// ============================================================
+// When backend is ready, replace these functions:
+// 
+// 1. fetchSensorData() - GET /api/devices/:id/current
+// 2. updateThresholds() - PUT /api/devices/:id/thresholds
+// 3. togglePump() - POST /api/devices/:id/pump/start
+// 4. Get history - GET /api/devices/:id/history
+//
+// Also connect WebSocket: ws://localhost:8080/api/ws
+// ============================================================
+
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 
 export const useSensorStore = defineStore('sensors', () => {
-  // Sensor readings
   const currentReadings = ref({
-    temperature: 0,
-    humidity: 0,
-    soilMoisture: 0,
-    lastUpdate: null,
+    waterLevel: 0,
+    timestamp: null,
+    deviceId: null
   })
 
-  // Historical data for charts
   const historicalData = ref([])
-
-  // Thresholds (configurable by admin)
   const thresholds = ref({
-    temperature: { min: 15, max: 30 },
-    humidity: { min: 40, max: 80 },
-    soilMoisture: { min: 30, max: 70 },
+    waterLevel: { min: 20, max: 80 }
   })
 
-  // Devices/Gardens
-  const devices = ref([
-    { id: 1, name: 'Garden A - Plot 1', status: 'online', assignedUsers: [2] },
-    { id: 2, name: 'Garden A - Plot 2', status: 'online', assignedUsers: [2] },
-    { id: 3, name: 'Garden B', status: 'online', assignedUsers: [] },
-  ])
-
-  // Pump status
   const pumpStatus = ref({
     isRunning: false,
     lastActivated: null,
-    mode: 'auto', // 'auto' or 'manual'
+    mode: 'auto',
+    manualControlFlag: false
   })
 
-  // Alerts
-  const alerts = ref([])
-
-  // Computed: Check if readings are within thresholds
-  const hasAlerts = computed(() => {
-    const alerts = []
-    
-    if (currentReadings.value.temperature < thresholds.value.temperature.min) {
-      alerts.push('Temperature too low')
-    }
-    if (currentReadings.value.temperature > thresholds.value.temperature.max) {
-      alerts.push('Temperature too high')
-    }
-    if (currentReadings.value.humidity < thresholds.value.humidity.min) {
-      alerts.push('Humidity too low')
-    }
-    if (currentReadings.value.soilMoisture < thresholds.value.soilMoisture.min) {
-      alerts.push('Soil moisture too low - watering needed')
-    }
-    
-    return alerts
-  })
-
-  // Actions
   function updateCurrentReadings(data) {
     currentReadings.value = {
-      ...data,
-      lastUpdate: new Date().toISOString(),
-    }
-    
-    // Add to historical data
-    historicalData.value.push({
+      waterLevel: data.waterLevel,
       timestamp: new Date().toISOString(),
-      ...data,
+      deviceId: data.deviceId || 'DEV-001'
+    }
+
+    historicalData.value.push({
+      ...currentReadings.value,
+      min: thresholds.value.waterLevel.min,
+      max: thresholds.value.waterLevel.max
     })
-    
-    // Keep only last 100 readings
-    if (historicalData.value.length > 100) {
+
+    if (historicalData.value.length > 1000) {
       historicalData.value.shift()
     }
-
-    // Check for alerts
-    checkAlerts()
   }
 
-  function checkAlerts() {
-    const newAlerts = hasAlerts.value
-    if (newAlerts.length > 0) {
-      alerts.value = newAlerts.map(msg => ({
-        message: msg,
-        timestamp: new Date().toISOString(),
-        severity: 'warning',
-      }))
-    }
-  }
-
-  function updateThresholds(newThresholds) {
+  // ============================================================
+  // TODO: BACKEND API - Update Thresholds
+  // ============================================================
+  // Replace with: PUT /api/devices/:id/thresholds
+  // Body: { min: number, max: number }
+  // ============================================================
+  async function updateThresholds(newThresholds) {
     thresholds.value = { ...thresholds.value, ...newThresholds }
+    
+    // TODO: Call backend API
+    /*
+    try {
+      await api.put('/devices/1/thresholds', {
+        min: newThresholds.waterLevel.min,
+        max: newThresholds.waterLevel.max
+      })
+    } catch (error) {
+      console.error('Failed to update thresholds:', error)
+      throw error
+    }
+    */
   }
 
-  function togglePump(manual = false) {
+  // ============================================================
+  // TODO: BACKEND API - Manual Pump Control
+  // ============================================================
+  // Replace with: POST /api/devices/:id/pump/start
+  // ============================================================
+  async function togglePump(manual = false) {
     pumpStatus.value.isRunning = !pumpStatus.value.isRunning
     pumpStatus.value.lastActivated = new Date().toISOString()
-    if (manual) {
-      pumpStatus.value.mode = 'manual'
+    pumpStatus.value.mode = manual ? 'manual' : 'auto'
+    pumpStatus.value.manualControlFlag = manual && pumpStatus.value.isRunning
+
+    // TODO: Call backend API
+    /*
+    try {
+      await api.post('/devices/1/pump/start', {
+        manual: manual
+      })
+    } catch (error) {
+      console.error('Failed to control pump:', error)
+      throw error
     }
-    
-    // TODO: Send command to backend/device (ali)
-    console.log('Pump status:', pumpStatus.value.isRunning ? 'ON' : 'OFF')
+    */
   }
 
-  // Simulate live sensor data (remove this when connecting to real backend)
+  // ============================================================
+  // TODO: BACKEND API - Fetch Sensor Data
+  // ============================================================
+  // Replace with: GET /api/devices/:id/current
+  // ============================================================
+  async function fetchSensorData() {
+    // TODO: Call backend API
+    /*
+    try {
+      const data = await api.get('/devices/1/current')
+      updateCurrentReadings(data)
+    } catch (error) {
+      console.error('Failed to fetch sensor data:', error)
+    }
+    */
+  }
+
+  // MOCK SIMULATION - REMOVE when WebSocket is connected
   function startSimulation() {
     setInterval(() => {
-      updateCurrentReadings({
-        temperature: (Math.random() * 15 + 18).toFixed(1),
-        humidity: (Math.random() * 40 + 40).toFixed(1),
-        soilMoisture: (Math.random() * 50 + 25).toFixed(1),
-
-      })
-    }, 3000) // Update every 3 seconds
+      const waterLevel = Math.floor(Math.random() * (85 - 15) + 15)
+      updateCurrentReadings({ waterLevel, deviceId: 'DEV-DEMO' })
+    }, 5000)
   }
 
   return {
     currentReadings,
     historicalData,
     thresholds,
-    devices,
     pumpStatus,
-    alerts,
-    hasAlerts,
     updateCurrentReadings,
     updateThresholds,
     togglePump,
-    startSimulation,
+    fetchSensorData,
+    startSimulation
   }
 })
