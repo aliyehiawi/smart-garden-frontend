@@ -8,7 +8,7 @@
 
     <!-- Navigation Items -->
     <nav class="sidebar-nav">
-      <!-- Dashboard (All Users) - Only active page -->
+      <!-- Dashboard -->
       <div class="nav-item active">
         <img :src="home" alt="dashboard" class="nav-icon" />
         <span class="nav-text" v-if="isExpanded">Dashboard</span>
@@ -155,7 +155,7 @@ async function handleLogout() {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 8px;
+  padding: 0 4px;
   border-radius: 12px;
   background: #FFFFFF;
   color: #374151;
@@ -250,7 +250,7 @@ async function handleLogout() {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0;
+  padding: 0 3px;
   border-radius: 12px;
   background: #FFFFFF;
   color: #374151;
@@ -268,17 +268,17 @@ async function handleLogout() {
 }
 
 .avatar-letter {
-  width: 48px;
-  height: 48px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   background: linear-gradient(135deg, #10B981, #34D399);
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 700;
-  border: 3px solid #E5E7EB;
+  border: 1px solid #E5E7EB;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   flex-shrink: 0;
 }
@@ -295,7 +295,7 @@ async function handleLogout() {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 9px;
+  padding: 0 4px;
   border-radius: 12px;
   background: #FFFFFF;
   color: #374151;

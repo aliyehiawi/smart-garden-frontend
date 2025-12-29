@@ -7,110 +7,128 @@
       </div>
       
       <!-- Pump Status Indicator -->
-      <div class="pump-status-indicator" :class="{ active: isRunning }">
+      <div class="pump-status-indicator" :class="{ active: pumpStatus.isRunning }">
         <span class="status-dot"></span>
-        <span class="status-text">{{ isRunning ? 'RUNNING' : 'STANDBY' }}</span>
+        <span class="status-text">{{ pumpStatus.isRunning ? 'RUNNING' : 'STANDBY' }}</span>
       </div>
     </div>
 
-    <!-- Safety Warning -->
-    <div class="safety-warning">
+    <!-- Device Selection Info (if no device selected) -->
+    <div v-if="!props.deviceId" class="device-warning">
       <span class="warning-icon">⚠️</span>
-      <div class="warning-content">
-        <strong>Safety Notice:</strong>
-        <p>Manual pump activation will override automatic controls. The pump will automatically stop when water reaches maximum threshold ({{ maxThreshold }}%).</p>
-      </div>
+      <p>Please select a device from the device list to control the pump.</p>
     </div>
 
-    <!-- Pump Info Display -->
-    <div class="pump-info-grid">
-      <div class="info-item">
-        <span class="info-label">Current Status</span>
-        <span class="info-value" :class="{ 'text-active': isRunning }">
-          {{ isRunning ? 'Running' : 'Stopped' }}
-        </span>
+    <template v-else>
+      <!-- Safety Warning -->
+      <div class="safety-warning">
+        <span class="warning-icon">⚠️</span>
+        <div class="warning-content">
+          <strong>Safety Notice:</strong>
+          <p>Manual pump activation will override automatic controls. The pump will automatically stop when water reaches maximum threshold or after the configured duration.</p>
+        </div>
       </div>
-      
-      <div class="info-item">
-        <span class="info-label">Running Time</span>
-        <span class="info-value">{{ runningTime }}</span>
-      </div>
-      
-      <div class="info-item">
-        <span class="info-label">Mode</span>
-        <span class="info-value">
-          <span class="mode-badge" :class="`mode-${mode}`">
-            {{ mode === 'manual' ? 'Manual' : 'Auto' }}
+
+      <!-- Pump Info Display -->
+      <div class="pump-info-grid">
+        <div class="info-item">
+          <span class="info-label">Current Status</span>
+          <span class="info-value" :class="{ 'text-active': pumpStatus.isRunning }">
+            {{ pumpStatus.isRunning ? 'Running' : 'Stopped' }}
           </span>
-        </span>
+        </div>
+        
+        <div class="info-item">
+          <span class="info-label">Running Time</span>
+          <span class="info-value">{{ runningTime }}</span>
+        </div>
+        
+        <div class="info-item">
+          <span class="info-label">Mode</span>
+          <span class="info-value">
+            <span class="mode-badge" :class="`mode-${pumpStatus.mode || 'auto'}`">
+              {{ pumpStatus.mode === 'MANUAL' ? 'Manual' : 'Auto' }}
+            </span>
+          </span>
+        </div>
+        
+        <div class="info-item">
+          <span class="info-label">Last Updated</span>
+          <span class="info-value timestamp">{{ formattedLastUpdate }}</span>
+        </div>
       </div>
-      
-      <div class="info-item">
-        <span class="info-label">Last Command</span>
-        <span class="info-value timestamp">{{ lastCommandTime }}</span>
-      </div>
-    </div>
 
-    <!-- Control Buttons -->
-    <div class="control-buttons">
-      <button 
-        @click="startPump" 
-        :disabled="isRunning || loading"
-        class="btn-control btn-start"
-      >
-        <span>{{ loading ? 'Starting...' : isRunning ? 'Pump Running' : 'Start Pump' }}</span>
-      </button>
-    </div>
-
-    <!-- Auto-Stop Info -->
-    <div class="auto-stop-info">
-      <span class="info-icon">ℹ️</span>
-      <div class="info-content">
-        <strong>Automatic Stop:</strong>
-        <p>The pump will automatically stop when water level reaches <strong>{{ maxThreshold }}%</strong> or after <strong>10 minutes</strong> of continuous operation (safety limit).</p>
+      <!-- Control Buttons -->
+      <div class="control-buttons">
+        <button 
+          @click="startPump" 
+          :disabled="pumpStatus.isRunning || loading"
+          class="btn-control btn-start"
+        >
+          <span>{{ loading ? 'Starting...' : pumpStatus.isRunning ? 'Pump Running' : 'Start Pump' }}</span>
+        </button>
       </div>
-    </div>
 
-    <!-- Feedback Messages -->
-    <transition name="fade">
-      <div v-if="feedbackMessage" :class="['feedback-message', feedbackType]">
-        <span class="feedback-icon">{{ feedbackIcon }}</span>
-        <span>{{ feedbackMessage }}</span>
+      <!-- Auto-Stop Info -->
+      <div class="auto-stop-info">
+        <span class="info-icon">ℹ️</span>
+        <div class="info-content">
+          <strong>Automatic Stop:</strong>
+          <p>The pump will automatically stop when water level reaches the maximum threshold or after a safety timeout period.</p>
+        </div>
       </div>
-    </transition>
 
-    <!-- Running Timer (when active) -->
-    <div v-if="isRunning" class="running-timer">
-      <div class="timer-bar">
-        <div class="timer-fill" :style="{ width: timerProgress + '%' }"></div>
+      <!-- Feedback Messages -->
+      <transition name="fade">
+        <div v-if="feedbackMessage" :class="['feedback-message', feedbackType]">
+          <span class="feedback-icon">{{ feedbackIcon }}</span>
+          <span>{{ feedbackMessage }}</span>
+        </div>
+      </transition>
+
+      <!-- Running Timer when active -->
+      <div v-if="pumpStatus.isRunning" class="running-timer">
+        <div class="timer-bar">
+          <div class="timer-fill" :style="{ width: timerProgress + '%' }"></div>
+        </div>
+        <p class="timer-text">
+          Pump has been running for {{ runningTime }}.
+        </p>
       </div>
-      <p class="timer-text">
-        Pump has been running for {{ runningTime }}. Maximum safe runtime: 10 minutes.
-      </p>
-    </div>
+    </template>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useSensorStore } from '@/stores/sensors'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { pumpAPI } from '@/utils/api'
 
-const sensorStore = useSensorStore()
+// Accept deviceId as prop
+const props = defineProps({
+  deviceId: {
+    type: Number,
+    required: true
+  }
+})
 
+// State
 const loading = ref(false)
 const feedbackMessage = ref('')
 const feedbackType = ref('success')
 const startTime = ref(null)
 const elapsedSeconds = ref(0)
+const pumpStatus = ref({
+  isRunning: false,
+  mode: 'AUTO',
+  lastUpdate: null
+})
 
 let timerInterval = null
+let statusPollInterval = null
 
-const isRunning = computed(() => sensorStore.pumpStatus.isRunning)
-const mode = computed(() => sensorStore.pumpStatus.mode)
-const maxThreshold = computed(() => sensorStore.thresholds.waterLevel.max)
-
+// Computed
 const runningTime = computed(() => {
-  if (!isRunning.value) return '0m 0s'
+  if (!pumpStatus.value.isRunning) return '0m 0s'
   
   const minutes = Math.floor(elapsedSeconds.value / 60)
   const seconds = elapsedSeconds.value % 60
@@ -118,14 +136,14 @@ const runningTime = computed(() => {
 })
 
 const timerProgress = computed(() => {
-  if (!isRunning.value) return 0
-  const maxSeconds = 10 * 60 // 10 minutes
+  if (!pumpStatus.value.isRunning) return 0
+  const maxSeconds = 10 * 60 // 10 minutes max
   return Math.min((elapsedSeconds.value / maxSeconds) * 100, 100)
 })
 
-const lastCommandTime = computed(() => {
-  if (!sensorStore.pumpStatus.lastCommand) return 'N/A'
-  const date = new Date(sensorStore.pumpStatus.lastCommand)
+const formattedLastUpdate = computed(() => {
+  if (!pumpStatus.value.lastUpdate) return 'N/A'
+  const date = new Date(pumpStatus.value.lastUpdate)
   return date.toLocaleString('en-US', {
     month: 'short',
     day: 'numeric',
@@ -138,17 +156,70 @@ const feedbackIcon = computed(() => {
   return feedbackType.value === 'success' ? '✅' : '❌'
 })
 
+// Watch for device changes
+watch(() => props.deviceId, (newDeviceId) => {
+  if (newDeviceId) {
+    fetchPumpStatus()
+    startStatusPolling()
+  } else {
+    stopStatusPolling()
+  }
+}, { immediate: true })
+
+// Lifecycle
 onMounted(() => {
-  if (isRunning.value) {
-    startTimer()
+  if (props.deviceId) {
+    fetchPumpStatus()
+    startStatusPolling()
   }
 })
 
 onUnmounted(() => {
-  if (timerInterval) {
-    clearInterval(timerInterval)
-  }
+  stopTimer()
+  stopStatusPolling()
 })
+
+// Methods
+async function fetchPumpStatus() {
+  if (!props.deviceId) return
+  
+  try {
+    const response = await pumpAPI.getStatus(props.deviceId)
+    
+    // Update pump status from backend response
+    pumpStatus.value = {
+      isRunning: response.isRunning || false,
+      mode: response.mode || 'AUTO',
+      lastUpdate: response.lastUpdate || new Date().toISOString()
+    }
+    
+    // Start timer if pump is running
+    if (pumpStatus.value.isRunning && !timerInterval) {
+      startTimer()
+    } else if (!pumpStatus.value.isRunning && timerInterval) {
+      stopTimer()
+    }
+  } catch (error) {
+    console.error('Failed to fetch pump status:', error)
+    // Don't show error message for polling failures
+  }
+}
+
+function startStatusPolling() {
+  stopStatusPolling() // Clear any existing interval
+  
+  // Poll every 5 seconds
+  statusPollInterval = setInterval(() => {
+    fetchPumpStatus()
+  }, 5000)
+}
+
+function stopStatusPolling() {
+  if (statusPollInterval) {
+    clearInterval(statusPollInterval)
+    statusPollInterval = null
+  }
+}
 
 function startTimer() {
   startTime.value = Date.now() - (elapsedSeconds.value * 1000)
@@ -167,27 +238,47 @@ function stopTimer() {
 }
 
 async function startPump() {
+  if (!props.deviceId) {
+    feedbackMessage.value = 'No device selected'
+    feedbackType.value = 'error'
+    return
+  }
+
   loading.value = true
   feedbackMessage.value = ''
   
   try {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    // Call backend API
+    const response = await pumpAPI.start(props.deviceId)
     
-    sensorStore.togglePump(true) // true = manual mode
+    // Update local status
+    pumpStatus.value.isRunning = true
+    pumpStatus.value.mode = 'MANUAL'
+    pumpStatus.value.lastUpdate = new Date().toISOString()
     
     startTimer()
     
-    feedbackMessage.value = 'Pump started successfully. It will automatically stop when water reaches ${maxThreshold.value}% or after 10 minutes'
+    feedbackMessage.value = 'Pump started successfully! It will automatically stop when water reaches the maximum threshold.'
     feedbackType.value = 'success'
     
+    // Refresh status from backend
+    setTimeout(() => {
+      fetchPumpStatus()
+    }, 1000)
+    
+    // Clear feedback message after 7 seconds
     setTimeout(() => {
       feedbackMessage.value = ''
     }, 7000)
     
   } catch (error) {
-    feedbackMessage.value = 'Failed to start pump. Please try again.'
+    console.error('Pump start error:', error)
+    feedbackMessage.value = error.message || 'Failed to start pump. Please try again.'
     feedbackType.value = 'error'
+    
+    setTimeout(() => {
+      feedbackMessage.value = ''
+    }, 5000)
   } finally {
     loading.value = false
   }
@@ -288,6 +379,27 @@ async function startPump() {
   color: #065F46;
 }
 
+.device-warning {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: #FEF3C7;
+  border: 2px solid #F59E0B;
+  border-radius: 12px;
+}
+
+.device-warning .warning-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.device-warning p {
+  margin: 0;
+  color: #78350F;
+  font-size: 0.875rem;
+}
+
 .safety-warning {
   display: flex;
   gap: 1rem;
@@ -367,11 +479,13 @@ async function startPump() {
   font-weight: 600;
 }
 
+.mode-MANUAL,
 .mode-manual {
   background: #FEF3C7;
   color: #92400E;
 }
 
+.mode-AUTO,
 .mode-auto {
   background: #D1FAE5;
   color: #065F46;
@@ -404,10 +518,6 @@ async function startPump() {
   transform: none !important;
 }
 
-.btn-icon {
-  font-size: 1.25rem;
-}
-
 .btn-start {
   background: linear-gradient(135deg, #3B82F6, #2563EB);
   color: white;
@@ -415,7 +525,7 @@ async function startPump() {
 
 .btn-start:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4);
+  box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
 }
 
 .feedback-message {
@@ -504,12 +614,6 @@ async function startPump() {
   font-size: 0.8125rem;
   margin: 0;
   line-height: 1.5;
-}
-
-.auto-stop-info .info-content p strong {
-  display: inline;
-  color: #1E40AF;
-  font-weight: 700;
 }
 
 .fade-enter-active,

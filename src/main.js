@@ -1,29 +1,26 @@
-import './assets/main.css'
-import { createApp } from 'vue'
-import { createPinia } from 'pinia'
-import App from './App.vue'
-import router from './router'
-import { useAuthStore } from './stores/auth' // ADD THIS
+import { createApp } from 'vue';
+import { createPinia } from 'pinia';
+import App from './App.vue';
+import router from './router';
 
-const app = createApp(App)
-const pinia = createPinia()
+// Import global styles
+import './assets/main.css';
 
-app.use(pinia)
-app.use(router)
+// Create Pinia instance
+const pinia = createPinia();
 
-// Initialize auth store on app load
-const authStore = useAuthStore()
-authStore.initializeFromToken()
-// Check for expired token on app start
-if (authStore.token && !authStore.isTokenValid()) {
-  console.warn('Stored token is expired')
-  authStore.logout()
-}
+// Create Vue app
+const app = createApp(App);
 
-app.mount('#app')
+// Use plugins
+app.use(pinia);
+app.use(router);
 
-// Load Inter font
-const link = document.createElement('link')
-link.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap'
-link.rel = 'stylesheet'
-document.head.appendChild(link)
+// Mount app
+app.mount('#app');
+
+// Optional: Global error handler
+app.config.errorHandler = (err, instance, info) => {
+  console.error('Global error:', err);
+  console.error('Error info:', info);
+};

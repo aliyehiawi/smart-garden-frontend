@@ -8,7 +8,7 @@
             <div class="title-row">
               <h1>Dashboard</h1>
               
-              <!-- Search Bar - Now inline with title -->
+              <!-- Search Bar -->
               <div class="search-bar">
                 <span class="search-icon">🔍</span>
                 <input 
@@ -31,46 +31,46 @@
       <!-- KPI Cards - Row 1 -->
       <div class="kpi-grid">
         <WaterLevelCard 
-          :value="sensorStore.currentReadings.waterLevel"
-          :min="sensorStore.thresholds.waterLevel.min"
-          :max="sensorStore.thresholds.waterLevel.max"
+          :value="latestReading?.waterLevel || 0"
+          :min="currentThresholds?.lowerThreshold || 20"
+          :max="currentThresholds?.upperThreshold || 80"
         />
         
         <PumpStatusCard 
-          :isRunning="sensorStore.pumpStatus.isRunning"
-          :mode="sensorStore.pumpStatus.mode"
+          :isRunning="currentPumpStatus?.isRunning || false"
+          :mode="currentPumpStatus?.manualControl ? 'MANUAL' : 'AUTO'"
           :runningTime="getPumpRunningTime()"
         />
         
         <DeviceStatusCard 
           :isOnline="true"
-          deviceName="ESP32-Garden-01"
+          :deviceName="selectedDeviceName"
           :lastSeen="getLastUpdateTime()"
         />
 
         <ThresholdSummaryCard 
-          :min="sensorStore.thresholds.waterLevel.min"
-          :max="sensorStore.thresholds.waterLevel.max"
-          :currentValue="sensorStore.currentReadings.waterLevel"
+          :min="currentThresholds?.lowerThreshold || 20"
+          :max="currentThresholds?.upperThreshold || 80"
+          :currentValue="latestReading?.waterLevel || 0"
         />
       </div>
 
       <!-- Live Chart - Row 2 -->
       <div class="row-2-grid">
         <LiveSensorDataCard 
-          :waterLevel="sensorStore.currentReadings.waterLevel"
+          :waterLevel="latestReading?.waterLevel || 0"
           :lastUpdate="getLastUpdateTime()"
-          :isLive="true"
-          :devices="devices"
+          :isLive="wsConnected"
+          :devices="devicesList"
           :previousValue="previousWaterLevel"
           @device-changed="handleDeviceChange"
         />
         
         <WaterLevelHistoryChart 
           :chartData="chartData"
-          :devices="devices"
-          :minThreshold="sensorStore.thresholds.waterLevel.min"
-          :maxThreshold="sensorStore.thresholds.waterLevel.max"
+          :devices="devicesList"
+          :minThreshold="currentThresholds?.lowerThreshold || 20"
+          :maxThreshold="currentThresholds?.upperThreshold || 80"
           :loading="chartLoading"
           @range-changed="handleRangeChange"
           @device-changed="handleDeviceChange"
@@ -78,30 +78,27 @@
         />
       </div>
 
-      <!-- Water Level History Table - Row 3 (ALL USERS) -->
+      <!-- Water Level History Table - Row 3 -->
       <WaterLevelTable />
 
-      <!-- Devices List - Row 4 (ALL USERS - Read Only for normal users) -->
-      <DeviceList v-if="authStore.user" />
+      <!-- Devices List - Row 4 -->
+      <DeviceList v-if="authStore.user" @pump-control-selected="handlePumpControlSelected" />
 
       <!-- ADMIN ONLY SECTIONS - Row 5 -->
       <template v-if="authStore.isAdmin">
         <div class="row-5-grid">
           <!-- Manual Pump Control -->
-          <ManualPumpControl />
+          <ManualPumpControl :device-id="selectedDeviceId" />
 
           <!-- Threshold Control -->
-          <ThresholdControl />
+          <ThresholdControl :device-id="selectedDeviceId" />
         </div>
 
         <!-- Device Registration - Row 6 -->
-        <DeviceRegistration />
+        <DeviceRegistration @device-registered="handleDeviceRegistered" />
 
         <!-- User Registration - Row 7 -->
         <UserRegistration />
-
-        <!-- User Management - Row 8 -->
-        <UserManagement />
       </template>
     </div>
   </MainLayout>
@@ -110,8 +107,11 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
-import { useSensorStore } from '@/stores/sensors'
+import { useDevicesStore } from '@/stores/devices'
+import { useSensorsStore } from '@/stores/sensors'
+import { useThresholdsStore } from '@/stores/thresholds'
 import MainLayout from '@/components/MainLayout.vue'
 import WaterLevelCard from '@/components/WaterLevelCard.vue'
 import PumpStatusCard from '@/components/PumpStatusCard.vue'
@@ -128,64 +128,120 @@ import UserRegistration from '@/components/UserRegistration.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
-const sensorStore = useSensorStore()
+const devicesStore = useDevicesStore()
+const sensorsStore = useSensorsStore()
+const thresholdsStore = useThresholdsStore()
+
+// Get reactive refs from stores
+const { devices } = storeToRefs(devicesStore)
+const { latestReadings, wsConnected, waterLevelData } = storeToRefs(sensorsStore)
+const { thresholds } = storeToRefs(thresholdsStore)
+const { selectedDevice } = storeToRefs(devicesStore)
+
 const previousWaterLevel = ref(null)
 const chartLoading = ref(false)
 const searchQuery = ref('')
+const selectedDeviceId = ref(null)
 
+// Computed properties
+const devicesList = computed(() => {
+  return devices.value.map(device => ({
+    id: device.id,
+    name: device.name || `Device-${device.id}`
+  }))
+})
 
-// Mock devices (replace with real data from store/API)
-const devices = ref([
-  { id: 1, name: 'ESP32-Garden-01' }
-])
+const selectedDeviceName = computed(() => {
+  if (!selectedDeviceId.value) return 'No device selected'
+  const device = devices.value.find(d => d.id === selectedDeviceId.value)
+  return device?.name || `Device-${selectedDeviceId.value}`
+})
 
-// WebSocket connection (placeholder)
-let ws = null
+const latestReading = computed(() => {
+  if (!selectedDeviceId.value) return null
+  return latestReadings.value[selectedDeviceId.value] || null
+})
 
-// Chart data
+const currentThresholds = computed(() => {
+  if (!selectedDeviceId.value) return null
+  return thresholds.value[selectedDeviceId.value] || null
+})
+
+const currentPumpStatus = computed(() => {
+  if (!selectedDeviceId.value) return null
+  return devicesStore.getPumpStatus(selectedDeviceId.value)
+})
+
 const chartData = computed(() => {
-  return sensorStore.historicalData.slice(-20).map(reading => ({
+  if (!selectedDeviceId.value) return []
+  const deviceData = waterLevelData.value[selectedDeviceId.value]
+  if (!deviceData) return []
+  
+  return deviceData.content.map(reading => ({
     value: reading.waterLevel,
     timestamp: reading.timestamp
   }))
 })
 
-onMounted(() => {
-  // Start simulation for demo purposes
-  sensorStore.startSimulation()
+onMounted(async () => {
+  console.log('Dashboard mounted, initializing...')
   
-  // TODO: Connect to WebSocket in production
-  // connectWebSocket()
+  // 1. Fetch all devices
+  await devicesStore.fetchDevices()
+  
+  // 2. Select first device if available
+  if (devices.value.length > 0) {
+    const firstDevice = devices.value[0]
+    selectedDeviceId.value = firstDevice.id
+    devicesStore.selectDevice(firstDevice.id)
+    console.log('Selected device:', firstDevice.id)
+    
+    // 3. Fetch thresholds for selected device
+    await thresholdsStore.fetchThresholds(firstDevice.id)
+    
+    // 4. Fetch pump status
+    await devicesStore.fetchPumpStatus(firstDevice.id)
+    
+    // 5. Fetch water level data (last 20 records)
+    await sensorsStore.fetchWaterLevelData(firstDevice.id, {
+      page: 0,
+      size: 20,
+      sort: 'timestamp,desc'
+    })
+    
+    // 6. Connect to WebSocket for real-time updates
+    sensorsStore.connectWebSocket()
+    
+    // 7. Subscribe to device updates
+    sensorsStore.subscribeToDevice(firstDevice.id, {
+      onSensorData: (data) => {
+        console.log('New sensor data received:', data)
+        previousWaterLevel.value = latestReading.value?.waterLevel || null
+      },
+      onPumpStatus: (status) => {
+        console.log('Pump status updated:', status)
+        devicesStore.updatePumpStatus(firstDevice.id, status)
+      },
+      onThresholdUpdate: (thresholdData) => {
+        console.log('Thresholds updated:', thresholdData)
+        thresholdsStore.setThresholds(firstDevice.id, thresholdData)
+      }
+    })
+  }
 })
 
 onUnmounted(() => {
-  // Clean up WebSocket
-  if (ws) {
-    ws.close()
+  // Cleanup WebSocket connections
+  if (selectedDeviceId.value) {
+    sensorsStore.unsubscribeFromDevice(selectedDeviceId.value)
   }
+  sensorsStore.disconnectWebSocket()
 })
 
-function connectWebSocket() {
-  // TODO: Implement WebSocket connection
-  // ws = new WebSocket('ws://your-backend-url/api/ws')
-  // ws.onmessage = handleWebSocketMessage
-}
-
-function handleWebSocketMessage(event) {
-  const data = JSON.parse(event.data)
-  if (data.type === 'sensor_update') {
-    sensorStore.updateCurrentReadings({
-      waterLevel: data.water_level,
-      deviceId: data.device_id
-    })
-  }
-}
-
-
 function getLastUpdateTime() {
-  if (!sensorStore.currentReadings.timestamp) return 'N/A'
+  if (!latestReading.value?.timestamp) return 'N/A'
   
-  const date = new Date(sensorStore.currentReadings.timestamp)
+  const date = new Date(latestReading.value.timestamp)
   return date.toLocaleTimeString('en-US', {
     hour: '2-digit',
     minute: '2-digit',
@@ -194,10 +250,10 @@ function getLastUpdateTime() {
 }
 
 function getPumpRunningTime() {
-  if (!sensorStore.pumpStatus.isRunning) return ''
+  if (!currentPumpStatus.value?.isRunning) return ''
+  if (!currentPumpStatus.value?.lastStartedAt) return 'Running'
   
-  // Calculate running time from store
-  const startTime = sensorStore.pumpStatus.startTime || Date.now()
+  const startTime = new Date(currentPumpStatus.value.lastStartedAt).getTime()
   const elapsed = Math.floor((Date.now() - startTime) / 1000)
   const minutes = Math.floor(elapsed / 60)
   const seconds = elapsed % 60
@@ -205,49 +261,67 @@ function getPumpRunningTime() {
   return `${minutes}m ${seconds}s`
 }
 
-function startPumpManually() {
-  sensorStore.togglePump(true) // true = manual mode
-  pumpMessage.value = '✅ Pump started manually, Hardware will detect the flag and activate'
+async function handleDeviceChange(deviceId) {
+  console.log('Device changed to:', deviceId)
   
-  setTimeout(() => {
-    pumpMessage.value = ''
-  }, 5000)
-}
-
-function handleDeviceChange(deviceId) {
-  console.log('Device changed:', deviceId)
-  // TODO: Fetch data for selected device
+  // Unsubscribe from previous device
+  if (selectedDeviceId.value) {
+    sensorsStore.unsubscribeFromDevice(selectedDeviceId.value)
+  }
+  
+  // Update selected device
+  selectedDeviceId.value = deviceId
+  devicesStore.selectDevice(deviceId)
+  
+  // Fetch new device data
+  await Promise.all([
+    thresholdsStore.fetchThresholds(deviceId),
+    devicesStore.fetchPumpStatus(deviceId),
+    sensorsStore.fetchWaterLevelData(deviceId, {
+      page: 0,
+      size: 20,
+      sort: 'timestamp,desc'
+    })
+  ])
+  
+  // Subscribe to new device
+  sensorsStore.subscribeToDevice(deviceId, {
+    onSensorData: (data) => {
+      previousWaterLevel.value = latestReading.value?.waterLevel || null
+    },
+    onPumpStatus: (status) => {
+      devicesStore.updatePumpStatus(deviceId, status)
+    },
+    onThresholdUpdate: (thresholdData) => {
+      thresholdsStore.setThresholds(deviceId, thresholdData)
+    }
+  })
 }
 
 function handleRangeChange(range) {
   console.log('Range changed:', range)
   chartLoading.value = true
   
-  // Simulate loading
+  // Implement range-based data fetching
   setTimeout(() => {
     chartLoading.value = false
   }, 1000)
-  
-  // TODO: Fetch data for selected range
 }
 
 function handleExportData(options) {
   console.log('Exporting data:', options)
   
-  // Prepare CSV data
-  const csvData = sensorStore.historicalData.map(reading => ({
-    timestamp: new Date(reading.timestamp).toLocaleString(),
-    waterLevel: reading.waterLevel,
-    minThreshold: sensorStore.thresholds.waterLevel.min,
-    maxThreshold: sensorStore.thresholds.waterLevel.max
+  const csvData = chartData.value.map(point => ({
+    timestamp: new Date(point.timestamp).toLocaleString(),
+    waterLevel: point.value,
+    minThreshold: currentThresholds.value?.lowerThreshold || 20,
+    maxThreshold: currentThresholds.value?.upperThreshold || 80
   }))
   
-  // Convert to CSV string
   const headers = Object.keys(csvData[0]).join(',')
   const rows = csvData.map(row => Object.values(row).join(','))
   const csv = [headers, ...rows].join('\n')
   
-  // Download file
   const blob = new Blob([csv], { type: 'text/csv' })
   const url = window.URL.createObjectURL(blob)
   const link = document.createElement('a')
@@ -257,18 +331,28 @@ function handleExportData(options) {
   window.URL.revokeObjectURL(url)
 }
 
+async function handleDeviceRegistered() {
+  // Reload devices list
+  await devicesStore.fetchDevices()
+  console.log('Device registered and list refreshed!')
+}
+
+function handlePumpControlSelected(device) {
+  if (device) {
+    console.log('Pump control selected for device:', device.id)
+    selectedDeviceId.value = device.id
+    handleDeviceChange(device.id)
+  } else {
+    console.log('Pump control deselected')
+  }
+}
+
 function handleSearch() {
-  // TODO: Implement search functionality
   console.log('Searching for:', searchQuery.value)
 }
 
 function clearSearch() {
   searchQuery.value = ''
-}
-
-function logout() {
-  authStore.logout()
-  router.push('/login')
 }
 </script>
 
@@ -298,7 +382,6 @@ function logout() {
   width: 100%;
 }
 
-/* Title row with search bar inline */
 .title-row {
   display: flex;
   align-items: center;
@@ -370,7 +453,6 @@ function logout() {
   color: #374151;
 }
 
-/* KPI Grid - 4 cards in a row, then 2x2, then 1 column */
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -378,7 +460,6 @@ function logout() {
   width: 100%;
 }
 
-/* Row 2 Grid - Live Data and Chart side by side */
 .row-2-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -394,39 +475,6 @@ function logout() {
   overflow: hidden;
 }
 
-@media (max-width: 1400px) {
-  .row-2-grid {
-    grid-template-columns: 1fr 1fr;
-    min-height: 520px;
-  }
-}
-
-@media (max-width: 1200px) {
-  .row-2-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-@media (max-width: 1024px) {
-  .row-2-grid {
-    grid-template-columns: 1fr;
-    align-items: stretch;
-    min-height: auto;
-  }
-  
-  .row-2-grid > * {
-    min-height: 450px;
-    width: 100%;
-  }
-}
-
-@media (max-width: 768px) {
-  .row-2-grid > * {
-    min-height: 380px;
-  }
-}
-
-/* Row 5 Grid - Admin Control Cards side by side */
 .row-5-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -434,57 +482,9 @@ function logout() {
   width: 100%;
 }
 
-@media (max-width: 1024px) {
-  .row-5-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.admin-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-  gap: 1.5rem;
-  width: 100%;
-}
-
-.card {
-  background: white;
-  border-radius: 16px;
-  padding: 1.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  width: 100%;
-}
-
-.card h3 {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: #1F2937;
-  margin: 0 0 1rem 0;
-}
-
-/* Large Screens - More spacing */
-@media (min-width: 1600px) {
-  .dashboard-container {
-    padding: 2.5rem 4rem;
-  }
-  
-  .kpi-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
-
-/* Medium screens - 2x2 grid */
 @media (max-width: 1400px) {
-  .dashboard-container {
-    padding: 2rem;
-  }
-  
   .kpi-grid {
     grid-template-columns: repeat(2, 1fr);
-  }
-  
-  .admin-grid {
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   }
 }
 
@@ -495,6 +495,14 @@ function logout() {
   
   .kpi-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .row-2-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .row-5-grid {
+    grid-template-columns: 1fr;
   }
   
   .title-row {
@@ -509,41 +517,12 @@ function logout() {
   }
 }
 
-/* Mobile - 1 column */
 @media (max-width: 768px) {
   .dashboard-container {
     padding: 1rem;
   }
 
-  .header-container {
-    padding: 0;
-  }
-  
-  .title-section {
-    text-align: left;
-  }
-  
-  .title-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.75rem;
-  }
-
-  .dashboard-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-  
-  .search-bar {
-    width: 100%;
-  }
-
   .kpi-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .admin-grid {
     grid-template-columns: 1fr;
   }
 }

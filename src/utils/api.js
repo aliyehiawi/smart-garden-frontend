@@ -1,177 +1,330 @@
-// ============================================================
-// API ENDPOINTS - FOR BACKEND INTEGRATION
-// ============================================================
-// This file documents all API endpoints needed from backend
-// Share this with your backend partner
-// ============================================================
+import axios from 'axios';
 
-/*
+// Base configuration
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL || 'ws://localhost:8080/api/ws';
 
-BASE URL: http://localhost:8080/api
-
-===== AUTHENTICATION =====
-
-1. Login
-   POST /api/auth/login
-   Body: { username: string, password: string }
-   Response: { token: string, user: { id, username, role, email } }
-
-2. Register (Admin only)
-   POST /api/auth/register
-   Headers: { Authorization: Bearer <token> }
-   Body: { username: string, email: string, password: string, role: string }
-   Response: { message: string, user: object }
-
-===== DEVICES =====
-
-3. Register Device
-   POST /api/devices/register
-   Headers: { Authorization: Bearer <token> }
-   Body: { device_name: string, location: string }
-   Response: { device_id: number, device_key: string }
-
-4. Get All Devices
-   GET /api/devices
-   Headers: { Authorization: Bearer <token> }
-   Response: { devices: array }
-
-5. Update Device Thresholds
-   PUT /api/devices/:id/thresholds
-   Headers: { Authorization: Bearer <token> }
-   Body: { min: number, max: number }
-   Response: { message: string }
-
-6. Start Pump Manually
-   POST /api/devices/:id/pump/start
-   Headers: { Authorization: Bearer <token> }
-   Response: { message: string, pump_status: string }
-
-===== SENSORS / WATER LEVEL =====
-
-7. Get Current Sensor Data
-   GET /api/devices/:id/current
-   Headers: { Authorization: Bearer <token> }
-   Response: { 
-     device_id: number,
-     water_level: number,
-     pump_status: string,
-     timestamp: string,
-     min_threshold: number,
-     max_threshold: number
-   }
-
-8. Get Water Level History
-   GET /api/devices/:id/history
-   Headers: { Authorization: Bearer <token> }
-   Query: ?from=timestamp&to=timestamp&limit=100
-   Response: { 
-     history: [
-       { 
-         timestamp: string,
-         water_level: number,
-         min_threshold: number,
-         max_threshold: number,
-         pump_status: string
-       }
-     ]
-   }
-
-===== USERS (Admin Only) =====
-
-9. Get All Users
-   GET /api/users
-   Headers: { Authorization: Bearer <token> }
-   Response: { users: array }
-
-10. Make User Admin
-    PUT /api/users/:id/make-admin
-    Headers: { Authorization: Bearer <token> }
-    Response: { message: string, user: object }
-
-11. Delete User
-    DELETE /api/users/:id
-    Headers: { Authorization: Bearer <token> }
-    Response: { message: string }
-
-===== WEBSOCKET =====
-
-12. Real-time Updates
-    WebSocket: ws://localhost:8080/api/ws
-    Authentication: Send token after connection
-    Message format: { 
-      type: "sensor_update",
-      device_id: number,
-      water_level: number,
-      pump_status: string,
-      timestamp: string
-    }
-
-===== MQTT TOPICS (Backend handles these) =====
-
-Hardware → Backend:
-  devices/<device_key>/sensor/data
-  devices/<device_key>/status
-
-Backend → Hardware:
-  devices/<device_key>/thresholds/update
-  devices/<device_key>/pump/start
-
-*/
-
-// ============================================================
-// TODO: Update this base URL when backend is deployed
-// ============================================================
-export const API_BASE_URL = 'http://localhost:8080/api'
-
-// ============================================================
-// API REQUEST WRAPPER - Use this for all API calls
-// ============================================================
-import { useAuthStore } from '@/stores/auth'
-import router from '@/router'
-
-export async function apiRequest(endpoint, options = {}) {
-  const authStore = useAuthStore()
-  
-  const headers = {
+// Create axios instance
+const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
     'Content-Type': 'application/json',
-    ...options.headers
-  }
-  
-  // Add JWT token
-  if (authStore.token) {
-    headers['Authorization'] = `Bearer ${authStore.token}`
-  }
-  
-  try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      ...options,
-      headers
-    })
-    
-    // Handle 401 (expired token)
-    if (response.status === 401) {
-      console.error('Unauthorized: Token expired')
-      authStore.logout()
-      router.push('/login')
-      throw new Error('Unauthorized')
+  },
+});
+
+// Request interceptor, Add JWT token to all requests
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('jwt_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
-    
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Request failed' }))
-      throw new Error(error.message || `HTTP ${response.status}`)
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor, Handle errors globally
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Token expired or invalid, clear auth and redirect to login
+      localStorage.removeItem('jwt_token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
     }
+    return Promise.reject(error);
+  }
+);
+
+// AUTHENTICATION ENDPOINTS
+
+export const authAPI = {
+  /**
+   * Register a new user
+   * @param {Object} userData username, password, email 
+   * @returns {Promise} token, user 
+   */
+  register: async (userData) => {
+    const response = await apiClient.post('/auth/register', userData);
+    return response.data;
+  },
+
+  /**
+   * Login user
+   * @param {Object} credentials username, password 
+   * @returns {Promise} token, user 
+   */
+  login: async (credentials) => {
+    const response = await apiClient.post('/auth/login', credentials);
+    return response.data;
+  },
+
+  /**
+   * Get current authenticated user
+   * @returns {Promise} User object
+   */
+  getCurrentUser: async () => {
+    const response = await apiClient.get('/auth/me');
+    return response.data;
+  },
+};
+
+// DEVICE MANAGEMENT ENDPOINTS (Admin Only)
+
+export const deviceAPI = {
+  /**
+   * Register a new device (Admin only)
+   * @param {Object} deviceData  name, location 
+   * @returns {Promise}  id, name, location, deviceKey, createdAt 
+   */
+  register: async (deviceData) => {
+    const response = await apiClient.post('/devices/register', deviceData);
+    return response.data;
+  },
+
+  /**
+   * Get all devices
+   * @returns {Promise} Array of devices
+   */
+  getAll: async () => {
+    const response = await apiClient.get('/devices');
+    return response.data;
+  },
+
+  /**
+   * Delete a device (Admin only)
+   * @param {number} deviceId
+   * @returns {Promise}
+   */
+  delete: async (deviceId) => {
+    const response = await apiClient.delete(`/devices/${deviceId}`);
+    return response.data;
+  },
+};
+
+// THRESHOLD MANAGEMENT ENDPOINTS (Admin Only)
+
+export const thresholdAPI = {
+  /**
+   * Get device thresholds
+   * @param {number} deviceId
+   * @returns {Promise}  upperThreshold, lowerThreshold 
+   */
+  get: async (deviceId) => {
+    const response = await apiClient.get(`/devices/${deviceId}/thresholds`);
+    return response.data;
+  },
+
+  /**
+   * Update device thresholds (Admin only)
+   * @param {number} deviceId
+   * @param {Object} thresholds  upperThreshold, lowerThreshold 
+   * @returns {Promise} Updated thresholds
+   */
+  update: async (deviceId, thresholds) => {
+    const response = await apiClient.put(`/devices/${deviceId}/thresholds`, thresholds);
+    return response.data;
+  },
+};
+
+// PUMP CONTROL ENDPOINTS (Admin Only)
+
+export const pumpAPI = {
+  /**
+   * Start pump manually (Admin only)
+   * @param {number} deviceId
+   * @returns {Promise} Success message
+   */
+  start: async (deviceId) => {
+    const response = await apiClient.post(`/devices/${deviceId}/pump/start`);
+    return response.data;
+  },
+
+  /**
+   * Get pump status
+   * @param {number} deviceId
+   * @returns {Promise}  isRunning, lastStartedAt, manualControl 
+   */
+  getStatus: async (deviceId) => {
+    const response = await apiClient.get(`/devices/${deviceId}/pump/status`);
+    return response.data;
+  },
+};
+
+// WATER LEVEL DATA ENDPOINTS (Authenticated Users)
+
+export const waterLevelAPI = {
+  /**
+   * Get paginated water level data
+   * @param {number} deviceId
+   * @param {Object} params  page: 0, size: 20, sort: 'timestamp,desc' 
+   * @returns {Promise}  content: [], totalElements, totalPages, number, size 
+   */
+  getData: async (deviceId, params = { page: 0, size: 20, sort: 'timestamp,desc' }) => {
+    const response = await apiClient.get(`/devices/${deviceId}/water-level-data`, { params });
+    return response.data;
+  },
+};
+
+// USER MANAGEMENT ENDPOINTS (Admin Only)
+
+export const userAPI = {
+  /**
+   * Get all users (Admin only)
+   * @returns {Promise} Array of users
+   */
+  getAll: async () => {
+    const response = await apiClient.get('/users');
+    return response.data;
+  },
+
+  /**
+   * Promote user to admin (Admin only)
+   * @param {number} userId
+   * @returns {Promise} Updated user
+   */
+  promoteToAdmin: async (userId) => {
+    const response = await apiClient.put(`/users/${userId}/promote`);
+    return response.data;
+  },
+
+  /**
+   * Delete user (Admin only)
+   * @param {number} userId
+   * @returns {Promise}
+   */
+  delete: async (userId) => {
+    const response = await apiClient.delete(`/users/${userId}`);
+    return response.data;
+  },
+};
+
+// WEBSOCKET CONNECTION
+
+export class WebSocketClient {
+  constructor() {
+    this.socket = null;
+    this.stompClient = null;
+    this.subscriptions = new Map();
+    this.reconnectAttempts = 0;
+    this.maxReconnectAttempts = 5;
+    this.reconnectDelay = 3000;
+  }
+
+  /**
+   * Connect to WebSocket
+   * @param {Function} onConnectCallback  Called when connected
+   */
+  connect(onConnectCallback) {
+    const token = localStorage.getItem('jwt_token');
     
-    return await response.json()
-  } catch (error) {
-    console.error('API request failed:', error)
-    throw error
+    // Using SockJS and STOMP for WebSocket connection
+    // we need to install: npm install sockjs-client @stomp/stompjs
+    import('sockjs-client').then(({ default: SockJS }) => {
+      import('@stomp/stompjs').then(({ Client }) => {
+        this.stompClient = new Client({
+          webSocketFactory: () => new SockJS(`${API_BASE_URL}/ws`),
+          connectHeaders: token ? { Authorization: `Bearer ${token}` } : {},
+          debug: (str) => {
+            if (import.meta.env.DEV) console.log('STOMP:', str);
+          },
+          reconnectDelay: this.reconnectDelay,
+          heartbeatIncoming: 4000,
+          heartbeatOutgoing: 4000,
+          onConnect: () => {
+            console.log('WebSocket Connected');
+            this.reconnectAttempts = 0;
+            if (onConnectCallback) onConnectCallback();
+          },
+          onStompError: (frame) => {
+            console.error('STOMP error:', frame);
+          },
+          onWebSocketClose: () => {
+            console.log('WebSocket connection closed');
+            this.handleReconnect(onConnectCallback);
+          },
+        });
+
+        this.stompClient.activate();
+      });
+    });
+  }
+
+  // Handle reconnection logic
+  handleReconnect(onConnectCallback) {
+    if (this.reconnectAttempts < this.maxReconnectAttempts) {
+      this.reconnectAttempts++;
+      console.log(`Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
+      setTimeout(() => this.connect(onConnectCallback), this.reconnectDelay);
+    } else {
+      console.error('Max reconnection attempts reached');
+    }
+  }
+
+  /**
+   * Subscribe to device updates
+   * @param {number} deviceId
+   * @param {Function} callback  Called with message data
+   * @returns {string} Subscription ID
+   */
+  subscribeToDevice(deviceId, callback) {
+    if (!this.stompClient?.connected) {
+      console.error('WebSocket not connected');
+      return null;
+    }
+
+    const topic = `/topic/device/${deviceId}`;
+    const subscription = this.stompClient.subscribe(topic, (message) => {
+      try {
+        const data = JSON.parse(message.body);
+        callback(data);
+      } catch (error) {
+        console.error('Error parsing WebSocket message:', error);
+      }
+    });
+
+    const subscriptionId = `device-${deviceId}`;
+    this.subscriptions.set(subscriptionId, subscription);
+    return subscriptionId;
+  }
+
+  /**
+   * Unsubscribe from a topic
+   * @param {string} subscriptionId
+   */
+  unsubscribe(subscriptionId) {
+    const subscription = this.subscriptions.get(subscriptionId);
+    if (subscription) {
+      subscription.unsubscribe();
+      this.subscriptions.delete(subscriptionId);
+    }
+  }
+
+  // Disconnect WebSocket
+  disconnect() {
+    if (this.stompClient) {
+      this.subscriptions.forEach((sub) => sub.unsubscribe());
+      this.subscriptions.clear();
+      this.stompClient.deactivate();
+      this.stompClient = null;
+    }
+  }
+
+  /**
+   * Check if connected
+   * @returns {boolean}
+   */
+  isConnected() {
+    return this.stompClient?.connected || false;
   }
 }
 
-// Convenience methods
-export const api = {
-  get: (endpoint) => apiRequest(endpoint, { method: 'GET' }),
-  post: (endpoint, data) => apiRequest(endpoint, { method: 'POST', body: JSON.stringify(data) }),
-  put: (endpoint, data) => apiRequest(endpoint, { method: 'PUT', body: JSON.stringify(data) }),
-  delete: (endpoint) => apiRequest(endpoint, { method: 'DELETE' })
-}
+// Create singleton WebSocket instance
+export const wsClient = new WebSocketClient();
+
+// Export axios instance for custom requests
+export default apiClient;

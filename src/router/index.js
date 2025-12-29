@@ -1,67 +1,52 @@
-import { createRouter, createWebHistory } from 'vue-router'
-import LoginView from '../views/LoginView.vue'
-import DashboardView from '../views/DashboardView.vue'
-import { useAuthStore } from '../stores/auth'
+import { createRouter, createWebHistory } from 'vue-router';
+import { useAuthStore } from '@/stores/auth';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
-      path: '/',
-      redirect: '/login'
-    },
-    {
       path: '/login',
       name: 'login',
-      component: LoginView
+      component: () => import('@/views/LoginView.vue'),
+      meta: { requiresAuth: false, title: 'Login' },
     },
     {
-      path: '/dashboard',
+      path: '/',
       name: 'dashboard',
-      component: DashboardView,
-      meta: { requiresAuth: true }
-    }
-  ]
-})
+      component: () => import('@/views/DashboardView.vue'),
+      meta: { requiresAuth: true, title: 'Dashboard' },
+    },
+    {
+      path: '/devices/:id',
+      name: 'device-details',
+      component: () => import('@/views/DashboardView.vue'), // create a separate DeviceDetailView
+      meta: { requiresAuth: true, title: 'Device Details' },
+    },
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'not-found',
+      redirect: '/',
+    },
+  ],
+});
 
-// navigation guard 
+// Navigation guard for authentication
 router.beforeEach((to, from, next) => {
-  const authStore = useAuthStore()
-  
-  // Check if route requires authentication
-  if (to.meta.requiresAuth) {
-    if (!authStore.isAuthenticated) {
-      next('/login')
-      return
-    }
+  const authStore = useAuthStore();
+  const requiresAuth = to.meta.requiresAuth !== false; // Default to true
 
-    // Validate JWT token 
-    if (authStore.token) {
-      try {
-        const payload = authStore.decodeJWT(authStore.token)
-        const now = Math.floor(Date.now() / 1000)
-        
-        // Check if token is expired
-        if (payload.exp && payload.exp < now) {
-          console.warn('Token expired, logging out')
-          authStore.logout()
-          next('/login')
-          return
-        }
-      } catch (error) {
-        console.error('Invalid token, logging out')
-        authStore.logout()
-        next('/login')
-        return
-      }
-    }
-    
-    next()
-  } else if (to.path === '/login' && authStore.isAuthenticated) {
-    next('/dashboard')
+  // Set page title
+  document.title = to.meta.title ? `${to.meta.title} - Water Level Monitoring` : 'Water Level Monitoring';
+
+  if (requiresAuth && !authStore.isAuthenticated) {
+    // Redirect to login if route requires auth and user is not authenticated
+    next({ name: 'login', query: { redirect: to.fullPath } });
+  } else if (to.name === 'login' && authStore.isAuthenticated) {
+    // Redirect to dashboard if user is already authenticated and tries to access login
+    next({ name: 'dashboard' });
   } else {
-    next()
+    next();
   }
-})
+});
 
-export default router
+export default router;

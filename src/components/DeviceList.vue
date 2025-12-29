@@ -7,7 +7,6 @@
       </div>
       
       <div class="header-actions">
-        <!-- Search/Filter -->
         <div class="search-box">
           <span class="search-icon">🔍</span>
           <input 
@@ -18,7 +17,6 @@
           />
         </div>
         
-        <!-- Filter by Status -->
         <select v-model="statusFilter" @change="handleFilter" class="filter-select">
           <option value="all">All Status</option>
           <option value="online">Online Only</option>
@@ -27,7 +25,6 @@
       </div>
     </div>
 
-    <!-- Table Container -->
     <div class="table-container">
       <table class="data-table">
         <thead>
@@ -44,12 +41,8 @@
                 <span class="sort-icon">{{ getSortIcon('deviceId') }}</span>
               </div>
             </th>
-            <th @click="sortBy('status')" class="sortable">
-              <div class="th-content">
-                <span>Status</span>
-                <span class="sort-icon">{{ getSortIcon('status') }}</span>
-              </div>
-            </th>
+            <th>Min Threshold</th>
+            <th>Max Threshold</th>
             <th @click="sortBy('lastUpdate')" class="sortable">
               <div class="th-content">
                 <span>Last Update</span>
@@ -60,12 +53,24 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-if="paginatedData.length === 0">
-            <td colspan="5" class="empty-state">
-              <p>No devices found</p>
+          <tr v-if="loading">
+            <td colspan="6" class="loading-state">
+              <div class="spinner"></div>
+              <p>Loading devices...</p>
             </td>
           </tr>
-          <tr v-for="device in paginatedData" :key="device.id" class="data-row">
+          <tr v-else-if="paginatedData.length === 0">
+            <td colspan="6" class="empty-state">
+              <p>📡 No devices found. Register a device to get started!</p>
+            </td>
+          </tr>
+          <tr 
+            v-else
+            v-for="device in paginatedData" 
+            :key="device.id" 
+            class="data-row"
+            :class="{ 'row-selected': selectedDeviceId === device.id }"
+          >
             <td class="device-name-cell">
               <div class="device-info">
                 <span class="device-icon">📡</span>
@@ -75,20 +80,22 @@
             <td class="device-id-cell">
               <code class="device-id">{{ device.deviceId }}</code>
             </td>
-            <td class="status-cell">
-              <span 
-                class="status-badge" 
-                :class="device.status === 'online' ? 'status-online' : 'status-offline'"
-              >
-                <span class="status-dot"></span>
-                {{ device.status === 'online' ? 'Online' : 'Offline' }}
-              </span>
-            </td>
+            <td class="threshold-cell">{{ device.minThreshold }}%</td>
+            <td class="threshold-cell">{{ device.maxThreshold }}%</td>
             <td class="timestamp-cell">{{ formatTimestamp(device.lastUpdate) }}</td>
             <td class="actions-cell">
               <div class="action-buttons">
+                <button 
+                  @click="controlPump(device)" 
+                  class="btn-action btn-control"
+                  :class="{ 'btn-selected': selectedDeviceId === device.id }"
+                  title="Control Pump"
+                >
+                  {{ selectedDeviceId === device.id ? 'Selected' : 'Control' }}
+                </button>
+                
                 <button @click="viewDevice(device)" class="btn-action btn-view" title="View Details">
-                 View
+                  View
                 </button>
                 <button 
                   v-if="authStore.isAdmin" 
@@ -96,7 +103,7 @@
                   class="btn-action btn-delete" 
                   title="Delete Device"
                 >
-                   Delete
+                  Delete
                 </button>
               </div>
             </td>
@@ -105,7 +112,6 @@
       </table>
     </div>
 
-    <!-- Pagination -->
     <div class="pagination">
       <div class="pagination-info">
         Showing {{ startIndex + 1 }} to {{ endIndex }} of {{ filteredData.length }} devices
@@ -150,11 +156,10 @@
       </div>
     </div>
 
-    <!-- View Device Modal -->
     <div v-if="showModal" class="modal-overlay" @click="closeModal">
       <div class="modal-content" @click.stop>
         <div class="modal-header">
-          <h3>📱 Device Details</h3>
+          <h3>Device Details</h3>
           <button @click="closeModal" class="btn-close">✕</button>
         </div>
         <div class="modal-body">
@@ -167,14 +172,12 @@
             <code class="detail-value">{{ selectedDevice?.deviceId }}</code>
           </div>
           <div class="detail-row">
-            <span class="detail-label">Status:</span>
-            <span 
-              class="status-badge" 
-              :class="selectedDevice?.status === 'online' ? 'status-online' : 'status-offline'"
-            >
-              <span class="status-dot"></span>
-              {{ selectedDevice?.status === 'online' ? 'Online' : 'Offline' }}
-            </span>
+            <span class="detail-label">Min Threshold:</span>
+            <span class="detail-value">{{ selectedDevice?.minThreshold }}%</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Max Threshold:</span>
+            <span class="detail-value">{{ selectedDevice?.maxThreshold }}%</span>
           </div>
           <div class="detail-row">
             <span class="detail-label">Last Update:</span>
@@ -191,10 +194,21 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
+import { useDevicesStore } from '@/stores/devices'
+import { useThresholdsStore } from '@/stores/thresholds'
 
 const authStore = useAuthStore()
+const devicesStore = useDevicesStore()
+const thresholdsStore = useThresholdsStore()
+
+// Use devicesStore instead of sensorsStore
+const { devices, loading } = storeToRefs(devicesStore)
+const { thresholds } = storeToRefs(thresholdsStore)
+
+const emit = defineEmits(['pump-control-selected'])
 
 const searchQuery = ref('')
 const statusFilter = ref('all')
@@ -204,49 +218,54 @@ const currentPage = ref(1)
 const rowsPerPage = ref(20)
 const showModal = ref(false)
 const selectedDevice = ref(null)
+const selectedDeviceId = ref(null)
 
-// Mock data - replace with real data from API/store
-const devicesData = ref([
-  {
-    id: 1,
-    name: 'ESP32-Garden-01',
-    deviceId: 'ESP32-ABCD1234',
-    status: 'online',
-    lastUpdate: new Date().toISOString(),
-    registeredAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: 2,
-    name: 'ESP32-Garden-02',
-    deviceId: 'ESP32-EFGH5678',
-    status: 'offline',
-    lastUpdate: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    registeredAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: 3,
-    name: 'ESP32-Backyard-01',
-    deviceId: 'ESP32-IJKL9012',
-    status: 'online',
-    lastUpdate: new Date().toISOString(),
-    registeredAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString()
+// Properly map devices data with thresholds
+const devicesData = computed(() => {
+  return devices.value.map(device => {
+    const deviceThresholds = thresholds.value[device.id]
+    return {
+      id: device.id,
+      name: device.name,
+      deviceId: device.id,
+      status: 'online',
+      lastUpdate: device.updatedAt || new Date().toISOString(),
+      registeredAt: device.createdAt || new Date().toISOString(),
+      minThreshold: deviceThresholds?.lowerThreshold || 20,
+      maxThreshold: deviceThresholds?.upperThreshold || 80
+    }
+  })
+})
+
+// Load devices and their thresholds
+async function loadDevices() {
+  try {
+    await devicesStore.fetchDevices()
+    
+    // Load thresholds for all devices
+    for (const device of devices.value) {
+      await thresholdsStore.fetchThresholds(device.id)
+    }
+  } catch (error) {
+    console.error('Failed to load devices:', error)
   }
-])
+}
 
-// Filtered data
+onMounted(() => {
+  loadDevices()
+})
+
 const filteredData = computed(() => {
   let data = devicesData.value
   
-  // Filter by search query
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
     data = data.filter(device => 
       device.name.toLowerCase().includes(query) ||
-      device.deviceId.toLowerCase().includes(query)
+      device.deviceId.toString().includes(query)
     )
   }
   
-  // Filter by status
   if (statusFilter.value !== 'all') {
     data = data.filter(device => device.status === statusFilter.value)
   }
@@ -254,7 +273,6 @@ const filteredData = computed(() => {
   return data
 })
 
-// Sorted data
 const sortedData = computed(() => {
   const data = [...filteredData.value]
   
@@ -277,7 +295,6 @@ const sortedData = computed(() => {
   return data
 })
 
-// Pagination
 const totalPages = computed(() => Math.ceil(sortedData.value.length / rowsPerPage.value))
 const startIndex = computed(() => (currentPage.value - 1) * rowsPerPage.value)
 const endIndex = computed(() => Math.min(startIndex.value + rowsPerPage.value, sortedData.value.length))
@@ -363,11 +380,41 @@ function closeModal() {
   selectedDevice.value = null
 }
 
-function deleteDevice(device) {
+async function deleteDevice(device) {
   if (confirm(`Are you sure you want to delete device "${device.name}"?`)) {
-    // TODO: Call API to delete device
-    devicesData.value = devicesData.value.filter(d => d.id !== device.id)
-    console.log('Device deleted:', device.id)
+    try {
+      // Use devicesStore.deleteDevice
+      const result = await devicesStore.deleteDevice(device.id)
+      
+      if (result.success) {
+        // Clear selection if deleted device was selected
+        if (selectedDeviceId.value === device.id) {
+          selectedDeviceId.value = null
+          emit('pump-control-selected', null)
+        }
+        
+        // Reload devices
+        await loadDevices()
+        
+        console.log('Device deleted:', device.id)
+      } else {
+        alert('Failed to delete device: ' + result.error)
+      }
+    } catch (error) {
+      alert('Failed to delete device: ' + error.message)
+      console.error('Delete error:', error)
+    }
+  }
+}
+
+function controlPump(device) {
+  // Toggle selection
+  if (selectedDeviceId.value === device.id) {
+    selectedDeviceId.value = null
+    emit('pump-control-selected', null)
+  } else {
+    selectedDeviceId.value = device.id
+    emit('pump-control-selected', device)
   }
 }
 </script>
@@ -380,7 +427,6 @@ function deleteDevice(device) {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   border: 2px solid #F59E0B;
   transition: all 0.3s ease;
-  position: relative;
   width: 100%;
   min-width: 0;
   height: 100%;
@@ -531,6 +577,11 @@ function deleteDevice(device) {
   background: #FFFBEB;
 }
 
+.data-row.row-selected {
+  background: #DBEAFE;
+  border-left: 4px solid #3B82F6;
+}
+
 .device-info {
   display: flex;
   align-items: center;
@@ -555,49 +606,9 @@ function deleteDevice(device) {
   color: #6B7280;
 }
 
-.status-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.375rem 0.75rem;
-  border-radius: 6px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-}
-
-.status-online {
-  background: #D1FAE5;
-  color: #065F46;
-}
-
-.status-online .status-dot {
-  background: #10B981;
-  animation: pulse-dot 2s ease-in-out infinite;
-}
-
-.status-offline {
-  background: #FEE2E2;
-  color: #991B1B;
-}
-
-.status-offline .status-dot {
-  background: #EF4444;
-}
-
-@keyframes pulse-dot {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
+.threshold-cell {
+  color: #374151;
+  font-weight: 500;
 }
 
 .timestamp-cell {
@@ -608,6 +619,7 @@ function deleteDevice(device) {
 .action-buttons {
   display: flex;
   gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .btn-action {
@@ -621,14 +633,29 @@ function deleteDevice(device) {
   white-space: nowrap;
 }
 
-.btn-view {
+.btn-control {
   background: linear-gradient(135deg, #3B82F6, #2563EB);
+  color: white;
+}
+
+.btn-control:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.btn-control.btn-selected {
+  background: linear-gradient(135deg, #10B981, #059669);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+}
+
+.btn-view {
+  background: linear-gradient(135deg, #8B5CF6, #7C3AED);
   color: white;
 }
 
 .btn-view:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
 }
 
 .btn-delete {
@@ -641,16 +668,24 @@ function deleteDevice(device) {
   box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
 }
 
-.empty-state {
+.loading-state, .empty-state {
   text-align: center;
   padding: 3rem 1rem !important;
   color: #9CA3AF;
 }
 
-.empty-icon {
-  font-size: 3rem;
-  display: block;
-  margin-bottom: 1rem;
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #E5E7EB;
+  border-top-color: #F59E0B;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .empty-state p {
@@ -747,7 +782,6 @@ function deleteDevice(device) {
   cursor: pointer;
 }
 
-/* Modal */
 .modal-overlay {
   position: fixed;
   top: 0;

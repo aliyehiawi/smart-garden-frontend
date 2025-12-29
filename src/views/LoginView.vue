@@ -15,7 +15,7 @@
             v-model="loginForm.username" 
             type="text" 
             required 
-            placeholder="Enter your username"
+            placeholder="Enter username"
             autocomplete="username"
           />
         </div>
@@ -42,16 +42,23 @@
           {{ isLoading ? 'Logging in...' : 'Login' }}
         </button>
 
+        <!-- Debug Info -->
+        <div v-if="debugInfo" class="debug-info">
+          <p><strong>Debug Info:</strong></p>
+          <p>API URL: {{ apiBaseUrl }}</p>
+          <p>Status: {{ debugInfo }}</p>
+        </div>
+
         <p v-if="successMessage" class="success-message">{{ successMessage }}</p>
         <p v-if="error" class="error-message">{{ error }}</p>
       </form>
 
       <!-- Demo Credentials -->
       <div class="demo-credentials">
-        <small>Demo: <strong>admin/admin</strong> or <strong>user/user</strong></small>
+        <small>Demo: <strong>admin/admin123</strong> or <strong>user/user</strong></small>
       </div>
       <p class="demo-note">
-    💡 Admins can register new users from the Dashboard
+        💡 Admins can register new users from the Dashboard
       </p>
     </div>
   </div>
@@ -69,14 +76,19 @@ const isLoading = ref(false)
 const error = ref('')
 const successMessage = ref('')
 const rememberMe = ref(false)
+const debugInfo = ref('')
+const apiBaseUrl = ref(import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api')
 
 const loginForm = ref({
   username: '',
   password: ''
 })
 
-// if user previously chose to be remembered
 onMounted(() => {
+  // Check if backend is reachable
+  checkBackendConnection()
+  
+  // Load remembered username
   try {
     const remembered = localStorage.getItem('rememberMe') === 'true'
     if (remembered) {
@@ -88,91 +100,69 @@ onMounted(() => {
   }
 })
 
+async function checkBackendConnection() {
+  try {
+    // Use correct actuator endpoint from backend
+    const response = await fetch(`${apiBaseUrl.value.replace('/api', '')}/actuator/health`)
+    if (response.ok) {
+      debugInfo.value = 'Backend is running'
+      console.log('Backend connection OK')
+    } else {
+      debugInfo.value = 'Backend returned error'
+      console.error('Backend returned:', response.status)
+    }
+  } catch (err) {
+    debugInfo.value = 'Cannot connect to backend'
+    console.error('Backend connection failed:', err)
+    error.value = 'Cannot connect to backend. Please ensure the server is running on http://localhost:8080'
+  }
+}
+
 async function handleLogin() {
   error.value = ''
   successMessage.value = ''
+  debugInfo.value = ''
   isLoading.value = true
 
+  console.log('Attempting login with:', {
+    username: loginForm.value.username,
+    apiUrl: apiBaseUrl.value
+  })
+
   try {
-    // ============================================================
-    // TODO: BACKEND API - LOGIN ENDPOINT
-    // ============================================================
-    // Replace this mock login with real API call from backend partner
-    // 
-    // Expected API:
-    //   POST /api/auth/login
-    //   Body: { username: string, password: string }
-    //   Response: { 
-    //     token: string (JWT),
-    //     user: { id, username, role, email }
-    //   }
-    //
-    // Uncomment and update this when backend is ready:
-    /*
-    const response = await fetch('http://localhost:8080/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        username: loginForm.value.username,
-        password: loginForm.value.password
-      })
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(errorData.message || 'Invalid credentials')
-    }
-
-    const data = await response.json()
-    
-    // Store the JWT token
-    authStore.token = data.token
-    authStore.user = data.user
-    localStorage.setItem('authToken', data.token)
-    localStorage.setItem('user', JSON.stringify(data.user))
-    
-    successMessage.value = 'Login successful! Redirecting...'
-    */
-    // ============================================================
-    // END TODO: Remove mock login below when real API is ready
-    // ============================================================
-
-    // MOCK LOGIN - REMOVE THIS BLOCK WHEN BACKEND IS READY
-    const success = authStore.login({
+    const result = await authStore.login({
       username: loginForm.value.username,
       password: loginForm.value.password
     })
 
-    if (!success) {
-      error.value = 'Invalid username or password'
-      return
-    }
-    
-    successMessage.value = 'Login successful! Redirecting...'
-    // END MOCK LOGIN
+    if (result.success) {
+      successMessage.value = 'Login successful! Redirecting...'
+      console.log('Login successful, redirecting to dashboard')
 
-    // Remember username (keep this regardless of mock/real)
-    if (rememberMe.value) {
-      localStorage.setItem('rememberMe', 'true')
-      localStorage.setItem('rememberUsername', loginForm.value.username)
+      // Remember username 
+      if (rememberMe.value) {
+        localStorage.setItem('rememberMe', 'true')
+        localStorage.setItem('rememberUsername', loginForm.value.username)
+      } else {
+        localStorage.removeItem('rememberMe')
+        localStorage.removeItem('rememberUsername')
+      }
+
+      setTimeout(() => {
+        router.push('/')
+      }, 500)
     } else {
-      localStorage.removeItem('rememberMe')
-      localStorage.removeItem('rememberUsername')
+      error.value = result.error
+      console.error('Login failed:', result.error)
     }
-
-    // Redirect to dashboard
-    setTimeout(() => {
-      router.push('/dashboard')
-    }, 500)
 
   } catch (err) {
-    error.value = (err.message || 'An error occurred. Please try again.')
+    error.value = err.message || 'An error occurred. Please try again!'
     console.error('Login error:', err)
   } finally {
     isLoading.value = false
   }
 }
-
 </script>
 
 <style scoped>
@@ -295,6 +285,19 @@ async function handleLogin() {
   cursor: not-allowed;
 }
 
+.debug-info {
+  padding: 0.75rem;
+  background: #F3F4F6;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  color: #6B7280;
+  margin: 0;
+}
+
+.debug-info p {
+  margin: 0.25rem 0;
+}
+
 .error-message {
   color: #DC2626;
   text-align: center;
@@ -327,8 +330,7 @@ async function handleLogin() {
   text-align: center;
   font-size: 0.65rem;
   color: #6B7280;
-;
-  margin: 0;
+  margin: 0.5rem 0 0 0;
   padding: 0.75rem;
   background: #f0efef;
   border-radius: 8px;
@@ -338,6 +340,7 @@ async function handleLogin() {
   .login-card {
     padding: 2rem 1.5rem;
   }
+}
 
 @media (min-width: 1024px) {
   .login-container {
@@ -348,7 +351,5 @@ async function handleLogin() {
   .login-card {
     margin: 0 auto;
   }
-}
-
 }
 </style>

@@ -42,41 +42,32 @@
                 <span class="sort-icon">{{ getSortIcon('waterLevel') }}</span>
               </div>
             </th>
-            <th @click="sortBy('minThreshold')" class="sortable">
-              <div class="th-content">
-                <span>Min Threshold (%)</span>
-                <span class="sort-icon">{{ getSortIcon('minThreshold') }}</span>
-              </div>
-            </th>
-            <th @click="sortBy('maxThreshold')" class="sortable">
-              <div class="th-content">
-                <span>Max Threshold (%)</span>
-                <span class="sort-icon">{{ getSortIcon('maxThreshold') }}</span>
-              </div>
-            </th>
             <th>Status</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-if="paginatedData.length === 0">
-            <td colspan="5" class="empty-state">
-              <span class="empty-icon">📊</span>
+          <tr v-if="loading">
+            <td colspan="3" class="loading-state">
+              <div class="spinner"></div>
+              <p>Loading data...</p>
+            </td>
+          </tr>
+          <tr v-else-if="paginatedData.length === 0">
+            <td colspan="3" class="empty-state">
               <p>No data available</p>
             </td>
           </tr>
-          <tr v-for="row in paginatedData" :key="row.id" class="data-row">
+          <tr v-else v-for="row in paginatedData" :key="row.id" class="data-row">
             <td class="timestamp-cell">{{ formatTimestamp(row.timestamp) }}</td>
             <td class="level-cell">
               <span class="level-badge">{{ row.waterLevel }}%</span>
             </td>
-            <td class="threshold-cell">{{ row.minThreshold }}%</td>
-            <td class="threshold-cell">{{ row.maxThreshold }}%</td>
             <td class="status-cell">
               <span 
                 class="status-badge" 
-                :class="getStatusClass(row.waterLevel, row.minThreshold, row.maxThreshold)"
+                :class="getStatusClass(row.waterLevel)"
               >
-                {{ getStatusText(row.waterLevel, row.minThreshold, row.maxThreshold) }}
+                {{ getStatusText(row.waterLevel) }}
               </span>
             </td>
           </tr>
@@ -87,13 +78,13 @@
     <!-- Pagination -->
     <div class="pagination">
       <div class="pagination-info">
-        Showing {{ startIndex + 1 }} to {{ endIndex }} of {{ filteredData.length }} entries
+        Showing {{ startIndex + 1 }} to {{ endIndex }} of {{ totalElements }} entries
       </div>
       
       <div class="pagination-controls">
         <button 
           @click="previousPage" 
-          :disabled="currentPage === 1"
+          :disabled="currentPage === 0"
           class="btn-page"
         >
           ← Previous
@@ -106,13 +97,13 @@
             @click="goToPage(page)"
             :class="['btn-page-num', { active: currentPage === page }]"
           >
-            {{ page }}
+            {{ page + 1 }}
           </button>
         </div>
         
         <button 
           @click="nextPage" 
-          :disabled="currentPage === totalPages"
+          :disabled="currentPage >= totalPages - 1"
           class="btn-page"
         >
           Next →
@@ -133,29 +124,55 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useSensorStore } from '@/stores/sensors'
+import { ref, computed, onMounted, watch } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useDevicesStore } from '@/stores/devices'
+import { useSensorsStore } from '@/stores/sensors'
+import { useThresholdsStore } from '@/stores/thresholds'
 
-const sensorStore = useSensorStore()
+// Use correct store name
+const devicesStore = useDevicesStore()
+const sensorsStore = useSensorsStore()
+const thresholdsStore = useThresholdsStore()
+
+const { selectedDevice } = storeToRefs(devicesStore)
+const { waterLevelData, loading } = storeToRefs(sensorsStore)
+const { thresholds } = storeToRefs(thresholdsStore)
 
 const searchQuery = ref('')
 const sortColumn = ref('timestamp')
 const sortDirection = ref('desc')
-const currentPage = ref(1)
+const currentPage = ref(0) // Backend uses 0-based pagination
 const rowsPerPage = ref(20)
 
-// Mock data - replace with real data from store
-const tableData = computed(() => {
-  return sensorStore.historicalData.map((reading, index) => ({
-    id: index,
-    timestamp: reading.timestamp,
-    waterLevel: reading.waterLevel,
-    minThreshold: reading.minThreshold || sensorStore.thresholds.waterLevel.min,
-    maxThreshold: reading.maxThreshold || sensorStore.thresholds.waterLevel.max
-  }))
+// Get current device data from store
+const currentDeviceId = computed(() => selectedDevice.value?.id || null)
+
+const currentDeviceData = computed(() => {
+  if (!currentDeviceId.value) return null
+  return waterLevelData.value[currentDeviceId.value] || null
 })
 
-// Filtered data based on search
+const currentThresholds = computed(() => {
+  if (!currentDeviceId.value) return { lowerThreshold: 20, upperThreshold: 80 }
+  return thresholds.value[currentDeviceId.value] || { lowerThreshold: 20, upperThreshold: 80 }
+})
+
+// Get paginated data from backend response
+const tableData = computed(() => {
+  if (!currentDeviceData.value) return []
+  return currentDeviceData.value.content || []
+})
+
+const totalElements = computed(() => {
+  return currentDeviceData.value?.totalElements || 0
+})
+
+const totalPages = computed(() => {
+  return currentDeviceData.value?.totalPages || 1
+})
+
+// Local filtering for search
 const filteredData = computed(() => {
   if (!searchQuery.value) return tableData.value
   
@@ -167,7 +184,7 @@ const filteredData = computed(() => {
   })
 })
 
-// Sorted data
+// Local sorting
 const sortedData = computed(() => {
   const data = [...filteredData.value]
   
@@ -190,30 +207,76 @@ const sortedData = computed(() => {
   return data
 })
 
-// Pagination calculations
-const totalPages = computed(() => Math.ceil(sortedData.value.length / rowsPerPage.value))
-const startIndex = computed(() => (currentPage.value - 1) * rowsPerPage.value)
-const endIndex = computed(() => Math.min(startIndex.value + rowsPerPage.value, sortedData.value.length))
-
 const paginatedData = computed(() => {
-  return sortedData.value.slice(startIndex.value, endIndex.value)
+  // If we're doing local filtering/sorting, we paginate locally
+  if (searchQuery.value || sortColumn.value !== 'timestamp') {
+    const start = currentPage.value * rowsPerPage.value
+    const end = start + rowsPerPage.value
+    return sortedData.value.slice(start, end)
+  }
+  // Otherwise use backend pagination
+  return sortedData.value
+})
+
+const startIndex = computed(() => {
+  if (searchQuery.value) {
+    return currentPage.value * rowsPerPage.value
+  }
+  return currentDeviceData.value?.number * currentDeviceData.value?.size || 0
+})
+
+const endIndex = computed(() => {
+  if (searchQuery.value) {
+    return Math.min(startIndex.value + rowsPerPage.value, filteredData.value.length)
+  }
+  return Math.min(startIndex.value + tableData.value.length, totalElements.value)
 })
 
 const visiblePages = computed(() => {
   const pages = []
   const maxVisible = 5
-  let start = Math.max(1, currentPage.value - Math.floor(maxVisible / 2))
-  let end = Math.min(totalPages.value, start + maxVisible - 1)
+  const total = searchQuery.value ? Math.ceil(filteredData.value.length / rowsPerPage.value) : totalPages.value
   
-  if (end - start < maxVisible - 1) {
-    start = Math.max(1, end - maxVisible + 1)
+  let start = Math.max(0, currentPage.value - Math.floor(maxVisible / 2))
+  let end = Math.min(total, start + maxVisible)
+  
+  if (end - start < maxVisible) {
+    start = Math.max(0, end - maxVisible)
   }
   
-  for (let i = start; i <= end; i++) {
+  for (let i = start; i < end; i++) {
     pages.push(i)
   }
   
   return pages
+})
+
+// Fetch data from backend
+async function fetchData() {
+  if (!currentDeviceId.value) {
+    console.warn('No device selected')
+    return
+  }
+  
+  await sensorsStore.fetchWaterLevelData(currentDeviceId.value, {
+    page: currentPage.value,
+    size: rowsPerPage.value,
+    sort: 'timestamp,desc'
+  })
+}
+
+onMounted(() => {
+  if (currentDeviceId.value) {
+    fetchData()
+  }
+})
+
+// Watch for device changes
+watch(currentDeviceId, (newDeviceId) => {
+  if (newDeviceId) {
+    currentPage.value = 0
+    fetchData()
+  }
 })
 
 function sortBy(column) {
@@ -231,30 +294,47 @@ function getSortIcon(column) {
 }
 
 function handleSearch() {
-  currentPage.value = 1
+  currentPage.value = 0
 }
 
-function handleRowsChange() {
-  currentPage.value = 1
+async function handleRowsChange() {
+  currentPage.value = 0
+  if (!searchQuery.value) {
+    await fetchData()
+  }
 }
 
-function previousPage() {
-  if (currentPage.value > 1) {
+async function previousPage() {
+  if (currentPage.value > 0) {
     currentPage.value--
+    if (!searchQuery.value) {
+      await fetchData()
+    }
   }
 }
 
-function nextPage() {
-  if (currentPage.value < totalPages.value) {
+async function nextPage() {
+  const maxPage = searchQuery.value 
+    ? Math.ceil(filteredData.value.length / rowsPerPage.value) - 1
+    : totalPages.value - 1
+    
+  if (currentPage.value < maxPage) {
     currentPage.value++
+    if (!searchQuery.value) {
+      await fetchData()
+    }
   }
 }
 
-function goToPage(page) {
+async function goToPage(page) {
   currentPage.value = page
+  if (!searchQuery.value) {
+    await fetchData()
+  }
 }
 
 function formatTimestamp(timestamp) {
+  if (!timestamp) return 'N/A'
   const date = new Date(timestamp)
   return date.toLocaleString('en-US', {
     year: 'numeric',
@@ -266,26 +346,30 @@ function formatTimestamp(timestamp) {
   })
 }
 
-function getStatusClass(level, min, max) {
+function getStatusClass(level) {
+  const min = currentThresholds.value.lowerThreshold
+  const max = currentThresholds.value.upperThreshold
+  
   if (level < min) return 'status-low'
   if (level > max) return 'status-high'
   return 'status-normal'
 }
 
-function getStatusText(level, min, max) {
+function getStatusText(level) {
+  const min = currentThresholds.value.lowerThreshold
+  const max = currentThresholds.value.upperThreshold
+  
   if (level < min) return 'Low'
   if (level > max) return 'High'
   return 'Normal'
 }
 
 function exportToCSV() {
-  const headers = ['Timestamp', 'Water Level (%)', 'Min Threshold (%)', 'Max Threshold (%)', 'Status']
+  const headers = ['Timestamp', 'Water Level (%)', 'Status']
   const rows = filteredData.value.map(row => [
     formatTimestamp(row.timestamp),
     row.waterLevel,
-    row.minThreshold,
-    row.maxThreshold,
-    getStatusText(row.waterLevel, row.minThreshold, row.maxThreshold)
+    getStatusText(row.waterLevel)
   ])
   
   const csv = [headers, ...rows].map(row => row.join(',')).join('\n')
@@ -472,11 +556,6 @@ function exportToCSV() {
   font-weight: 600;
 }
 
-.threshold-cell {
-  color: #374151;
-  font-weight: 500;
-}
-
 .status-badge {
   display: inline-block;
   padding: 0.375rem 0.75rem;
@@ -501,10 +580,24 @@ function exportToCSV() {
   color: #991B1B;
 }
 
-.empty-state {
+.loading-state, .empty-state {
   text-align: center;
   padding: 3rem 1rem !important;
   color: #9CA3AF;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #E5E7EB;
+  border-top-color: #8B5CF6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .empty-icon {

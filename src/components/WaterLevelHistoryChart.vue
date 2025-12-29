@@ -135,7 +135,6 @@ watch(() => props.chartData, () => {
 
 async function loadChart() {
   // Simulate lazy loading of Chart.js
-  // In production, use dynamic import: const Chart = await import('chart.js')
   await nextTick()
   initChart()
 }
@@ -145,7 +144,7 @@ function initChart() {
   
   const ctx = chartCanvas.value.getContext('2d')
   
-  // Simple canvas drawing (replace with Chart.js in production)
+  // Simple canvas drawing 
   drawChart(ctx)
 }
 

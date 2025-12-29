@@ -1,137 +1,210 @@
-// ============================================================
-// TODO: BACKEND API - Replace mock data with real API calls
-// ============================================================
-// When backend is ready, replace these functions:
-// 
-// 1. fetchSensorData() - GET /api/devices/:id/current
-// 2. updateThresholds() - PUT /api/devices/:id/thresholds
-// 3. togglePump() - POST /api/devices/:id/pump/start
-// 4. Get history - GET /api/devices/:id/history
-//
-// Also connect WebSocket: ws://localhost:8080/api/ws
-// ============================================================
+import { defineStore } from 'pinia';
+import { ref, computed } from 'vue';
+import { waterLevelAPI, wsClient } from '@/utils/api';
 
-import { defineStore } from 'pinia'
-import { ref } from 'vue'
+export const useSensorsStore = defineStore('sensors', () => {
+  // State
+  const waterLevelData = ref({}); // Map of deviceId, { content: [], pagination: {} }
+  const latestReadings = ref({}); // Map of deviceId, latest sensor reading
+  const loading = ref(false);
+  const error = ref(null);
+  const wsConnected = ref(false);
+  const subscriptions = ref({}); // Track active subscriptions
 
-export const useSensorStore = defineStore('sensors', () => {
-  const currentReadings = ref({
-    waterLevel: 0,
-    timestamp: null,
-    deviceId: null
-  })
+  // Getters
+  const isWebSocketConnected = computed(() => wsConnected.value);
 
-  const historicalData = ref([])
-  const thresholds = ref({
-    waterLevel: { min: 20, max: 80 }
-  })
+  // Actions
 
-  const pumpStatus = ref({
-    isRunning: false,
-    lastActivated: null,
-    mode: 'auto',
-    manualControlFlag: false
-  })
+  /**
+   * Fetch paginated water level data for a device
+   * @param {number} deviceId
+   * @param {Object} params - { page: 0, size: 20, sort: 'timestamp,desc' }
+   */
+  async function fetchWaterLevelData(deviceId, params = { page: 0, size: 20, sort: 'timestamp,desc' }) {
+    loading.value = true;
+    error.value = null;
 
-  function updateCurrentReadings(data) {
-    currentReadings.value = {
-      waterLevel: data.waterLevel,
-      timestamp: new Date().toISOString(),
-      deviceId: data.deviceId || 'DEV-001'
-    }
+    try {
+      const data = await waterLevelAPI.getData(deviceId, params);
+      
+      // Store the paginated data
+      waterLevelData.value[deviceId] = {
+        content: data.content || [],
+        totalElements: data.totalElements || 0,
+        totalPages: data.totalPages || 0,
+        currentPage: data.number || 0,
+        pageSize: data.size || 20,
+      };
 
-    historicalData.value.push({
-      ...currentReadings.value,
-      min: thresholds.value.waterLevel.min,
-      max: thresholds.value.waterLevel.max
-    })
+      // Update latest reading if data is available
+      if (data.content && data.content.length > 0) {
+        latestReadings.value[deviceId] = data.content[0];
+      }
 
-    if (historicalData.value.length > 1000) {
-      historicalData.value.shift()
+      return { success: true, data };
+    } catch (err) {
+      const errorMessage = err.response?.data?.message || 'Failed to fetch water level data';
+      error.value = errorMessage;
+      return { success: false, error: errorMessage };
+    } finally {
+      loading.value = false;
     }
   }
 
-  // ============================================================
-  // TODO: BACKEND API - Update Thresholds
-  // ============================================================
-  // Replace with: PUT /api/devices/:id/thresholds
-  // Body: { min: number, max: number }
-  // ============================================================
-  async function updateThresholds(newThresholds) {
-    thresholds.value = { ...thresholds.value, ...newThresholds }
+  /**
+   * Get water level data for a specific device
+   * @param {number} deviceId
+   */
+  function getWaterLevelData(deviceId) {
+    return waterLevelData.value[deviceId] || null;
+  }
+
+  /**
+   * Get latest reading for a device
+   * @param {number} deviceId
+   */
+  function getLatestReading(deviceId) {
+    return latestReadings.value[deviceId] || null;
+  }
+
+  /**
+   * Update latest reading (for WebSocket updates)
+   * @param {number} deviceId
+   * @param {Object} reading
+   */
+  function updateLatestReading(deviceId, reading) {
+    latestReadings.value[deviceId] = reading;
     
-    // TODO: Call backend API
-    /*
-    try {
-      await api.put('/devices/1/thresholds', {
-        min: newThresholds.waterLevel.min,
-        max: newThresholds.waterLevel.max
-      })
-    } catch (error) {
-      console.error('Failed to update thresholds:', error)
-      throw error
+    // Also prepend to water level data if it exists
+    if (waterLevelData.value[deviceId]) {
+      const currentData = waterLevelData.value[deviceId];
+      currentData.content = [reading, ...currentData.content].slice(0, currentData.pageSize);
+      currentData.totalElements++;
     }
-    */
   }
 
-  // ============================================================
-  // TODO: BACKEND API - Manual Pump Control
-  // ============================================================
-  // Replace with: POST /api/devices/:id/pump/start
-  // ============================================================
-  async function togglePump(manual = false) {
-    pumpStatus.value.isRunning = !pumpStatus.value.isRunning
-    pumpStatus.value.lastActivated = new Date().toISOString()
-    pumpStatus.value.mode = manual ? 'manual' : 'auto'
-    pumpStatus.value.manualControlFlag = manual && pumpStatus.value.isRunning
-
-    // TODO: Call backend API
-    /*
-    try {
-      await api.post('/devices/1/pump/start', {
-        manual: manual
-      })
-    } catch (error) {
-      console.error('Failed to control pump:', error)
-      throw error
+  // Connect to WebSocket for real-time updates
+  function connectWebSocket() {
+    if (wsClient.isConnected()) {
+      wsConnected.value = true;
+      return { success: true };
     }
-    */
+
+    wsClient.connect(() => {
+      wsConnected.value = true;
+      console.log('WebSocket connected successfully');
+    });
+
+    return { success: true };
   }
 
-  // ============================================================
-  // TODO: BACKEND API - Fetch Sensor Data
-  // ============================================================
-  // Replace with: GET /api/devices/:id/current
-  // ============================================================
-  async function fetchSensorData() {
-    // TODO: Call backend API
-    /*
-    try {
-      const data = await api.get('/devices/1/current')
-      updateCurrentReadings(data)
-    } catch (error) {
-      console.error('Failed to fetch sensor data:', error)
+  /**
+   * Subscribe to device updates via WebSocket
+   * @param {number} deviceId
+   * @param {Object} callbacks onSensorData, onPumpStatus, onThresholdUpdate 
+   */
+  function subscribeToDevice(deviceId, callbacks = {}) {
+    if (!wsClient.isConnected()) {
+      console.warn('WebSocket not connected, connecting now...');
+      connectWebSocket();
+      
+      // Wait a bit for connection then subscribe
+      setTimeout(() => {
+        if (wsClient.isConnected()) {
+          performSubscription(deviceId, callbacks);
+        }
+      }, 1000);
+    } else {
+      performSubscription(deviceId, callbacks);
     }
-    */
   }
 
-  // MOCK SIMULATION - REMOVE when WebSocket is connected
-  function startSimulation() {
-    setInterval(() => {
-      const waterLevel = Math.floor(Math.random() * (85 - 15) + 15)
-      updateCurrentReadings({ waterLevel, deviceId: 'DEV-DEMO' })
-    }, 5000)
+  // Perform the actual subscription
+  function performSubscription(deviceId, callbacks) {
+    const subscriptionId = wsClient.subscribeToDevice(deviceId, (message) => {
+      // Handle different message types from WebSocket
+      // Backend sends: type: 'SENSOR_DATA' / 'PUMP_STATUS' / 'THRESHOLD_UPDATE', data: {...} 
+      
+      if (message.type === 'SENSOR_DATA') {
+        updateLatestReading(deviceId, message.data);
+        if (callbacks.onSensorData) {
+          callbacks.onSensorData(message.data);
+        }
+      } else if (message.type === 'PUMP_STATUS') {
+        if (callbacks.onPumpStatus) {
+          callbacks.onPumpStatus(message.data);
+        }
+      } else if (message.type === 'THRESHOLD_UPDATE') {
+        if (callbacks.onThresholdUpdate) {
+          callbacks.onThresholdUpdate(message.data);
+        }
+      }
+    });
+
+    if (subscriptionId) {
+      subscriptions.value[deviceId] = subscriptionId;
+    }
+  }
+
+  /**
+   * Unsubscribe from device updates
+   * @param {number} deviceId
+   */
+  function unsubscribeFromDevice(deviceId) {
+    const subscriptionId = subscriptions.value[deviceId];
+    if (subscriptionId) {
+      wsClient.unsubscribe(subscriptionId);
+      delete subscriptions.value[deviceId];
+    }
+  }
+
+  // Disconnect WebSocket
+  function disconnectWebSocket() {
+    wsClient.disconnect();
+    wsConnected.value = false;
+    subscriptions.value = {};
+  }
+
+  // Clear all sensor data
+  function clearSensorData() {
+    waterLevelData.value = {};
+    latestReadings.value = {};
+    error.value = null;
+  }
+
+  /**
+   * Remove data for a specific device
+   * @param {number} deviceId
+   */
+  function removeDeviceData(deviceId) {
+    delete waterLevelData.value[deviceId];
+    delete latestReadings.value[deviceId];
+    unsubscribeFromDevice(deviceId);
   }
 
   return {
-    currentReadings,
-    historicalData,
-    thresholds,
-    pumpStatus,
-    updateCurrentReadings,
-    updateThresholds,
-    togglePump,
-    fetchSensorData,
-    startSimulation
-  }
-})
+    // State
+    waterLevelData,
+    latestReadings,
+    loading,
+    error,
+    wsConnected,
+    subscriptions,
+    
+    // Getters
+    isWebSocketConnected,
+    
+    // Actions
+    fetchWaterLevelData,
+    getWaterLevelData,
+    getLatestReading,
+    updateLatestReading,
+    connectWebSocket,
+    subscribeToDevice,
+    unsubscribeFromDevice,
+    disconnectWebSocket,
+    clearSensorData,
+    removeDeviceData,
+  };
+});

@@ -1,37 +1,40 @@
 <template>
-  <div id="app">
-    <router-view />
-  </div>
+  <RouterView />
 </template>
 
 <script setup>
 import { onMounted } from 'vue'
+import { RouterView } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 const authStore = useAuthStore()
 
+// The auth store already calls initAuth() internally when it's created
 onMounted(() => {
-  // Initialize auth state from localStorage
-  authStore.initializeAuth()
+  // Auth store is already initialized automatically
+  if (authStore.isAuthenticated) {
+    authStore.fetchCurrentUser()
+  }
 })
 </script>
 
 <style>
+/* Global styles */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-#app {
-  min-height: 100vh;
-  background: #F3F4F6;
+body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: #F9FAFB;
 }
 
-/* Ensure consistent layout across all screen sizes */
-body {
-  margin: 0;
-  overflow-x: hidden;
+#app {
+  width: 100%;
+  min-height: 100vh;
 }
 </style>

@@ -3,7 +3,7 @@
     <div class="card-header">
       <div class="title-section">
         <h3>Register New Device</h3>
-        <p class="subtitle">Add a new IoT device to your system</p>
+        <p class="subtitle">Add a new IoT water level monitoring device</p>
       </div>
     </div>
 
@@ -27,10 +27,54 @@
         <span v-if="errors.deviceName" class="error-text">{{ errors.deviceName }}</span>
       </div>
 
+      <div class="form-row">
+        <div class="form-group">
+          <label for="minThreshold" class="form-label">
+            <span>Min Threshold (%)</span>
+            <span class="required">*</span>
+          </label>
+          <input
+            id="minThreshold"
+            v-model.number="minThreshold"
+            type="number"
+            min="0"
+            max="100"
+            step="0.01"
+            placeholder="e.g., 20"
+            class="form-input"
+            :class="{ 'input-error': errors.minThreshold }"
+            @input="clearError('minThreshold')"
+            :disabled="loading"
+          />
+          <span v-if="errors.minThreshold" class="error-text">{{ errors.minThreshold }}</span>
+        </div>
+
+        <div class="form-group">
+          <label for="maxThreshold" class="form-label">
+            <span>Max Threshold (%)</span>
+            <span class="required">*</span>
+          </label>
+          <input
+            id="maxThreshold"
+            v-model.number="maxThreshold"
+            type="number"
+            min="0"
+            max="100"
+            step="0.01"
+            placeholder="e.g., 80"
+            class="form-input"
+            :class="{ 'input-error': errors.maxThreshold }"
+            @input="clearError('maxThreshold')"
+            :disabled="loading"
+          />
+          <span v-if="errors.maxThreshold" class="error-text">{{ errors.maxThreshold }}</span>
+        </div>
+      </div>
+
       <button 
         @click="registerDevice" 
         class="btn-register"
-        :disabled="loading || !deviceName.trim()"
+        :disabled="loading || !deviceName.trim() || !minThreshold || !maxThreshold"
       >
         <span class="btn-icon">{{ loading ? '' : '' }}</span>
         <span>{{ loading ? 'Registering...' : 'Register Device' }}</span>
@@ -41,7 +85,7 @@
     <div v-else class="success-display">
       <!-- Success Header -->
       <div class="success-header">
-        <span class="success-icon"></span>
+        <span class="success-icon">✅</span>
         <div>
           <h4>Device Registered Successfully!</h4>
           <p>Please save the following credentials securely</p>
@@ -58,20 +102,20 @@
         <div class="credential-item">
           <span class="credential-label">Device ID</span>
           <div class="credential-value-wrapper">
-            <code class="credential-value">{{ registeredDevice.deviceId }}</code>
-            <button @click="copyToClipboard(registeredDevice.deviceId)" class="btn-copy" title="Copy Device ID">
+            <code class="credential-value">{{ registeredDevice.id }}</code>
+            <button @click="copyToClipboard(registeredDevice.id.toString())" class="btn-copy" title="Copy Device ID">
             </button>
           </div>
         </div>
       </div>
 
-      <!-- Device Key (Shown Once Only) -->
+      <!-- Device Key, Shown Once Only -->
       <div class="device-key-section">
         <div class="key-header">
           <span class="key-icon">🔑</span>
           <div>
             <strong>Device Key (One-Time Display)</strong>
-            <p>This key will only be shown once, (Copy it now!)</p>
+            <p>This key will only be shown once. Copy it now!</p>
           </div>
         </div>
         
@@ -80,6 +124,14 @@
           <button @click="copyToClipboard(registeredDevice.deviceKey)" class="btn-copy-key">
             Copy Key
           </button>
+        </div>
+      </div>
+
+      <!-- Threshold Info -->
+      <div class="info-panel">
+        <div class="info-content">
+          <strong>Configured Thresholds:</strong>
+          <p>Min: {{ registeredDevice.minThreshold }}% | Max: {{ registeredDevice.maxThreshold }}%</p>
         </div>
       </div>
 
@@ -110,7 +162,7 @@
       <!-- Copy Feedback -->
       <transition name="fade">
         <div v-if="copyFeedback" class="copy-feedback">
-          ✅ {{ copyFeedback }}
+          {{ copyFeedback }}
         </div>
       </transition>
     </div>
@@ -119,57 +171,105 @@
 
 <script setup>
 import { ref, reactive } from 'vue'
+import { deviceAPI } from '@/utils/api'
 
 const deviceName = ref('')
+const minThreshold = ref(20)
+const maxThreshold = ref(80)
 const loading = ref(false)
 const showSuccess = ref(false)
 const copyFeedback = ref('')
+const emit = defineEmits(['device-registered'])
 const errors = reactive({
-  deviceName: ''
+  deviceName: '',
+  minThreshold: '',
+  maxThreshold: ''
 })
 
 const registeredDevice = ref({
+  id: null,
   name: '',
-  deviceId: '',
-  deviceKey: ''
+  deviceKey: '',
+  minThreshold: 0,
+  maxThreshold: 0
 })
 
 function clearError(field) {
   errors[field] = ''
 }
 
-async function registerDevice() {
-  // Validation
+function validateForm() {
+  let isValid = true
+  
+  // Device Name
   if (!deviceName.value.trim()) {
     errors.deviceName = 'Device name is required'
-    return
+    isValid = false
+  } else if (deviceName.value.length < 3) {
+    errors.deviceName = 'Device name must be at least 3 characters'
+    isValid = false
   }
   
-  if (deviceName.value.length < 3) {
-    errors.deviceName = 'Device name must be at least 3 characters'
-    return
+  // Min Threshold
+  if (!minThreshold.value && minThreshold.value !== 0) {
+    errors.minThreshold = 'Min threshold is required'
+    isValid = false
+  } else if (minThreshold.value < 0 || minThreshold.value > 100) {
+    errors.minThreshold = 'Min threshold must be between 0 and 100'
+    isValid = false
   }
+  
+  // Max Threshold
+  if (!maxThreshold.value && maxThreshold.value !== 0) {
+    errors.maxThreshold = 'Max threshold is required'
+    isValid = false
+  } else if (maxThreshold.value < 0 || maxThreshold.value > 100) {
+    errors.maxThreshold = 'Max threshold must be between 0 and 100'
+    isValid = false
+  }
+  
+  // Threshold validation
+  if (minThreshold.value >= maxThreshold.value) {
+    errors.maxThreshold = 'Max threshold must be greater than min threshold'
+    isValid = false
+  }
+  
+  return isValid
+}
+
+async function registerDevice() {
+  // Clear previous errors
+  Object.keys(errors).forEach(key => errors[key] = '')
+  
+  if (!validateForm()) return
   
   loading.value = true
   
   try {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500))
+    // Backend API
+    const response = await deviceAPI.register({
+      name: deviceName.value.trim(),
+      minThreshold: minThreshold.value,
+      maxThreshold: maxThreshold.value
+    })
     
-    // Generate device credentials
-    const deviceId = `ESP32-${Math.random().toString(36).substring(2, 10).toUpperCase()}`
-    const deviceKey = `${Math.random().toString(36).substring(2)}${Math.random().toString(36).substring(2)}${Math.random().toString(36).substring(2)}`.toUpperCase()
-    
+    // Backend returns device info
     registeredDevice.value = {
-      name: deviceName.value,
-      deviceId: deviceId,
-      deviceKey: deviceKey
+      id: response.id,
+      name: response.name,
+      deviceKey: response.deviceKey,
+      minThreshold: response.minThreshold,
+      maxThreshold: response.maxThreshold
     }
     
     showSuccess.value = true
     
+    // Emit event to parent to refresh device list
+    emit('device-registered')
+    
   } catch (error) {
-    errors.deviceName = 'Failed to register device. Please try again.'
+    console.error('Device registration failed:', error)
+    errors.deviceName = error.response?.data?.message || error.message || 'Failed to register device. Please try again.'
   } finally {
     loading.value = false
   }
@@ -186,10 +286,12 @@ function copyToClipboard(text) {
 
 function copyAllCredentials() {
   const credentials = `Device Registration
-  
+
 Device Name: ${registeredDevice.value.name}
-Device ID: ${registeredDevice.value.deviceId}
+Device ID: ${registeredDevice.value.id}
 Device Key: ${registeredDevice.value.deviceKey}
+Min Threshold: ${registeredDevice.value.minThreshold}%
+Max Threshold: ${registeredDevice.value.maxThreshold}%
 
 ⚠️ Keep this information secure!`
   
@@ -197,14 +299,25 @@ Device Key: ${registeredDevice.value.deviceKey}
 }
 
 function resetForm() {
+  // Reset form inputs
   deviceName.value = ''
+  minThreshold.value = 20
+  maxThreshold.value = 80
+  
+  // Reset showSuccess to FALSE to show the form again
   showSuccess.value = false
+  
+  // Clear registered device data
   registeredDevice.value = {
+    id: null,
     name: '',
-    deviceId: '',
-    deviceKey: ''
+    deviceKey: '',
+    minThreshold: 0,
+    maxThreshold: 0
   }
-  errors.deviceName = ''
+  
+  // Clear all errors
+  Object.keys(errors).forEach(key => errors[key] = '')
 }
 </script>
 
@@ -257,6 +370,12 @@ function resetForm() {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
 }
 
 .form-group {
@@ -317,7 +436,7 @@ function resetForm() {
   justify-content: center;
   gap: 0.75rem;
   padding: 1rem 1.5rem;
-  background: linear-gradient(135deg, #00FFE5);
+  background: linear-gradient(135deg, #10B981, #059669);
   color: white;
   border: none;
   border-radius: 12px;
@@ -330,7 +449,7 @@ function resetForm() {
 
 .btn-register:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(0, 255, 229, 0.4);
+  box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4);
 }
 
 .btn-register:disabled {
@@ -356,6 +475,10 @@ function resetForm() {
   background: linear-gradient(135deg, #D1FAE5, #A7F3D0);
   border: 2px solid #10B981;
   border-radius: 12px;
+}
+
+.success-icon {
+  font-size: 2rem;
 }
 
 .success-header h4 {
@@ -422,14 +545,14 @@ function resetForm() {
 }
 
 .btn-copy:hover {
-  border-color: #00FFE5;
-  background: #FDF2F8;
+  border-color: #10B981;
+  background: #F0FDF4;
 }
 
 .device-key-section {
   padding: 1.5rem;
-  background: linear-gradient(135deg, #F9FAFB);
-  border: 2px solid #E5E7EB;
+  background: linear-gradient(135deg, #FEF3C7, #FDE68A);
+  border: 2px solid #F59E0B;
   border-radius: 12px;
 }
 
@@ -440,7 +563,7 @@ function resetForm() {
 }
 
 .key-icon {
-  font-size: 1.2rem;
+  font-size: 1.5rem;
   flex-shrink: 0;
 }
 
@@ -498,6 +621,27 @@ function resetForm() {
   box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
 }
 
+.info-panel {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  background: #EFF6FF;
+  border: 2px solid #3B82F6;
+  border-radius: 10px;
+}
+
+.info-content {
+  font-size: 0.8125rem;
+  color: #1E40AF;
+  line-height: 1.4;
+}
+
+.info-content strong {
+  font-weight: 600;
+  display: block;
+  margin-bottom: 0.125rem;
+}
+
 .security-warning {
   display: flex;
   gap: 1rem;
@@ -508,7 +652,7 @@ function resetForm() {
 }
 
 .warning-icon {
-  font-size: 1.2rem;
+  font-size: 1.5rem;
   flex-shrink: 0;
 }
 
@@ -599,6 +743,10 @@ function resetForm() {
   .card-header {
     flex-direction: column;
     align-items: stretch;
+  }
+  
+  .form-row {
+    grid-template-columns: 1fr;
   }
   
   .credentials-grid {

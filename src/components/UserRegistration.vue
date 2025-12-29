@@ -172,7 +172,6 @@
           <div class="credential-value-wrapper">
             <code class="credential-value">{{ registeredUser.username }}</code>
             <button @click="copyToClipboard(registeredUser.username)" class="btn-copy" title="Copy Username">
-              📋
             </button>
           </div>
         </div>
@@ -180,7 +179,7 @@
         <div class="credential-item">
           <span class="credential-label">Role</span>
           <span class="role-badge" :class="`role-${registeredUser.role}`">
-            {{ registeredUser.role === 'admin' ? '👤 Admin' : '👁️ User' }}
+            {{ registeredUser.role === 'admin' ? 'Admin' : 'User' }}
           </span>
         </div>
         
@@ -190,7 +189,7 @@
         </div>
       </div>
 
-      <!-- Temporary Password (Shown Once Only) -->
+      <!-- Temporary Password Shown Once Only -->
       <div class="password-section">
         <div class="password-header">
           <span class="password-icon">🔑</span>
@@ -203,7 +202,7 @@
         <div class="password-display">
           <code class="password-value">{{ registeredUser.temporaryPassword }}</code>
           <button @click="copyToClipboard(registeredUser.temporaryPassword)" class="btn-copy-password">
-            📋 Copy Password
+            Copy Password
           </button>
         </div>
       </div>
@@ -214,8 +213,8 @@
         <div class="warning-content">
           <strong>Security Notice:</strong>
           <ul>
-            <li>This password is <strong>temporary</strong> and must be changed on first login</li>
-            <li>Share credentials through a <strong>secure channel</strong> (encrypted email, direct message)</li>
+            <li>This password is temporary and must be changed on first login</li>
+            <li>Share credentials through a secure channel (encrypted email, direct message)</li>
             <li>Never share passwords via unencrypted communication</li>
             <li>The password will not be shown again after closing this message</li>
             <li>User must use these credentials to log in and set a new password</li>
@@ -226,10 +225,10 @@
       <!-- Action Buttons -->
       <div class="action-buttons">
         <button @click="copyAllCredentials" class="btn-action btn-copy-all">
-          📋 Copy All Credentials
+          Copy All Credentials
         </button>
         <button @click="resetForm" class="btn-action btn-new">
-          ➕ Register Another User
+          Register Another User
         </button>
       </div>
 
@@ -317,8 +316,8 @@ function validateForm() {
     errors.username = 'Username must be at least 3 characters'
     isValid = false
   }
-  
-  // Password (if not auto-generating)
+
+  // Password if not auto-generating
   if (!autoGeneratePassword.value) {
     if (!formData.password) {
       errors.password = 'Password is required'
@@ -616,7 +615,7 @@ function resetForm() {
 }
 
 .success-icon {
-  font-size: 2rem;
+  font-size: 1.2rem;
   flex-shrink: 0;
 }
 
@@ -710,8 +709,8 @@ function resetForm() {
 
 .password-section {
   padding: 1.5rem;
-  background: linear-gradient(135deg, #FEF3C7, #FDE68A);
-  border: 2px solid #F59E0B;
+  background: linear-gradient(135deg,#F9FAFB);
+  border: 2px solid #F5F3FF;
   border-radius: 12px;
 }
 
@@ -722,20 +721,20 @@ function resetForm() {
 }
 
 .password-icon {
-  font-size: 2rem;
+  font-size: 1.5rem;
   flex-shrink: 0;
 }
 
 .password-header strong {
   display: block;
   font-size: 1rem;
-  color: #92400E;
+  color: #6B7280;
   margin-bottom: 0.25rem;
 }
 
 .password-header p {
   font-size: 0.875rem;
-  color: #78350F;
+  color: #6B7280;
   margin: 0;
 }
 
@@ -745,7 +744,7 @@ function resetForm() {
   gap: 1rem;
   padding: 1rem;
   background: white;
-  border: 2px solid #F59E0B;
+  border: 2px solid #1E40AF;
   border-radius: 10px;
 }
 
@@ -753,18 +752,18 @@ function resetForm() {
   flex: 1;
   font-size: 1.125rem;
   font-weight: 700;
-  color: #92400E;
+  color: #6B7280;
   font-family: 'Courier New', monospace;
   word-break: break-all;
   padding: 0.5rem;
-  background: #FFFBEB;
+  background: #E0E7FF;
   border-radius: 6px;
   letter-spacing: 1px;
 }
 
 .btn-copy-password {
   padding: 0.75rem 1.25rem;
-  background: linear-gradient(135deg, #F59E0B, #D97706);
+  background: linear-gradient(135deg, #1E40AF);
   color: white;
   border: none;
   border-radius: 8px;
@@ -778,7 +777,7 @@ function resetForm() {
 
 .btn-copy-password:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+  box-shadow: 0 4px 12px rgba(30, 64, 175, 0.4);
 }
 
 .security-warning {

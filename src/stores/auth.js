@@ -1,184 +1,169 @@
-import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { defineStore } from 'pinia';
+import { ref, computed } from 'vue';
+import { authAPI } from '@/utils/api';
 
 export const useAuthStore = defineStore('auth', () => {
-  const user = ref(null)
-  const token = ref(localStorage.getItem('authToken'))
+  // State
+  const user = ref(null);
+  const token = ref(null);
+  const loading = ref(false);
+  const error = ref(null);
 
-  const isAuthenticated = computed(() => !!token.value && !!user.value)
-  const isAdmin = computed(() => user.value?.role === 'admin')
+  // Getters
+  const isAuthenticated = computed(() => !!token.value);
+  const isAdmin = computed(() => user.value?.role === 'ADMIN');
+  const username = computed(() => user.value?.username || '');
+  const email = computed(() => user.value?.email || '');
 
-  // ============================================================
-  // TODO: BACKEND API - These functions use mock data
-  // ============================================================
-  // When backend is ready:
-  // 1. Remove generateMockJWT() - backend will generate real JWT
-  // 2. Update login() to call backend API instead of mock
-  // 3. Keep decodeJWT(), logout(), and initializeFromToken() - they work with real JWTs too
-  // ============================================================
+   // Initialize auth from localStorage
+  function initAuth() {
+    const savedToken = localStorage.getItem('jwt_token');
+    const savedUser = localStorage.getItem('user');
 
-  // MOCK JWT Generator - REMOVE when backend provides real JWT
-  function generateMockJWT(payload) {
-    const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))
-    const body = btoa(JSON.stringify(payload))
-    const signature = btoa('mock-signature-' + Math.random())
-    return `${header}.${body}.${signature}`
-  }
-
-  // Decode JWT token (works with both mock and real JWTs)
-  function decodeJWT(jwtToken) {
-    try {
-      const parts = jwtToken.split('.')
-      if (parts.length !== 3) return null
-      const payload = JSON.parse(atob(parts[1]))
-      return payload
-    } catch (e) {
-      console.error('Failed to decode JWT:', e)
-      return null
-    }
-  }
-
-  // Initialize user from stored token (works with both mock and real JWTs)
-  function initializeFromToken() {
-    if (token.value) {
-      const payload = decodeJWT(token.value)
-      if (payload) {
-        user.value = payload
-      } else {
-        logout()
+    if (savedToken && savedUser) {
+      token.value = savedToken;
+      try {
+        user.value = JSON.parse(savedUser);
+      } catch (e) {
+        console.error('Error parsing saved user:', e);
+        clearAuth();
       }
     }
   }
 
-  // ============================================================
-  // TODO: BACKEND API - LOGIN FUNCTION
-  // ============================================================
-  // This is MOCK login - replace with backend API call
-  // 
-  // Expected backend API:
-  //   POST /api/auth/login
-  //   Body: { username: string, password: string }
-  //   Response: { token: string, user: object }
-  //
-  // Replace the entire function body with:
-  /*
+  /**
+   * Register a new user
+   * @param {Object} userData  username, password, email 
+   */
+  async function register(userData) {
+    loading.value = true;
+    error.value = null;
+
+    try {
+      const response = await authAPI.register(userData);
+      
+      // Backend returns { token, user } on successful registration
+      token.value = response.token;
+      user.value = response.user;
+
+      // Save to localStorage
+      localStorage.setItem('jwt_token', response.token);
+      localStorage.setItem('user', JSON.stringify(response.user));
+
+      return { success: true };
+    } catch (err) {
+      const errorMessage = err.response?.data?.message || 'Registration failed';
+      error.value = errorMessage;
+      return { success: false, error: errorMessage };
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  /**
+   * Login user
+   * @param {Object} credentials  username, password 
+   */
   async function login(credentials) {
+    loading.value = true;
+    error.value = null;
+
     try {
-      const response = await fetch('http://localhost:8080/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(credentials)
-      })
-
-      if (!response.ok) {
-        return false
-      }
-
-      const data = await response.json()
+      const response = await authAPI.login(credentials);
       
-      token.value = data.token
-      user.value = data.user
+      // Backend returns { token, user } on successful login
+      token.value = response.token;
+      user.value = response.user;
 
-      localStorage.setItem('authToken', token.value)
-      localStorage.setItem('user', JSON.stringify(user.value))
+      // Save to localStorage
+      localStorage.setItem('jwt_token', response.token);
+      localStorage.setItem('user', JSON.stringify(response.user));
 
-      return true
-    } catch (error) {
-      console.error('Login failed:', error)
-      return false
+      return { success: true };
+    } catch (err) {
+      const errorMessage = err.response?.data?.message || 'Login failed';
+      error.value = errorMessage;
+      return { success: false, error: errorMessage };
+    } finally {
+      loading.value = false;
     }
   }
-  */
-  // ============================================================
-  // END TODO: Remove mock login below
-  // ============================================================
 
-  // MOCK LOGIN - REMOVE WHEN BACKEND IS READY
-  function login(credentials) {
-    let userData = null
-
-    if (credentials.username === 'admin' && credentials.password === 'admin') {
-      userData = { id: 1, username: 'admin', role: 'admin', email: 'admin@smartgarden.com' }
-    } else if (credentials.username === 'user' && credentials.password === 'user') {
-      userData = { id: 2, username: 'user', role: 'user', email: 'user@smartgarden.com' }
-    }
-
-    if (!userData) {
-      return false
-    }
-
-    const jwtPayload = {
-      ...userData,
-      iat: Math.floor(Date.now() / 1000),
-      exp: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60 // 1 week
-    }
-
-    token.value = generateMockJWT(jwtPayload)
-    user.value = userData
-
-    localStorage.setItem('authToken', token.value)
-    localStorage.setItem('user', JSON.stringify(userData))
-
-    return true
-  }
-  // END MOCK LOGIN
-
-  // Logout function (works with both mock and real backend)
+   // Logout user
   function logout() {
-    user.value = null
-    token.value = null
-    
-    localStorage.removeItem('authToken')
-    localStorage.removeItem('user')
-    localStorage.removeItem('rememberMe')
-    localStorage.removeItem('rememberUsername')
-    localStorage.clear()
-    
-    return true
+    clearAuth();
+    // Redirect to login is handled by router
   }
 
-  // Check if token is still valid
-  function isTokenValid() {
-    if (!token.value) return false
-    
+   // Fetch current user data from backend
+  async function fetchCurrentUser() {
+    if (!token.value) {
+      return { success: false, error: 'No token found' };
+    }
+
+    loading.value = true;
+    error.value = null;
+
     try {
-      const payload = decodeJWT(token.value)
-      const now = Math.floor(Date.now() / 1000)
+      const userData = await authAPI.getCurrentUser();
+      user.value = userData;
+      localStorage.setItem('user', JSON.stringify(userData));
+      return { success: true };
+    } catch (err) {
+      const errorMessage = err.response?.data?.message || 'Failed to fetch user data';
+      error.value = errorMessage;
       
-      if (payload.exp && payload.exp < now) {
-        return false
+      // If token is invalid, clear auth
+      if (err.response?.status === 401) {
+        clearAuth();
       }
       
-      return true
-    } catch (error) {
-      return false
+      return { success: false, error: errorMessage };
+    } finally {
+      loading.value = false;
     }
   }
 
-  // Auto-logout if token expires
-  function checkTokenExpiration() {
-    if (token.value && !isTokenValid()) {
-      console.warn('Token expired during session')
-      logout()
-      window.location.href = '/login'
-    }
+   // Clear authentication data
+  function clearAuth() {
+    user.value = null;
+    token.value = null;
+    error.value = null;
+    localStorage.removeItem('jwt_token');
+    localStorage.removeItem('user');
   }
 
-  // Check token every minute
-  setInterval(checkTokenExpiration, 60000)
+  /**
+   * Check if user has admin privileges
+   * @returns {boolean}
+   */
+  function hasAdminAccess() {
+    return isAdmin.value;
+  }
 
-  initializeFromToken()
+  // Initialize auth on store creation
+  initAuth();
 
   return {
+    // State
     user,
     token,
+    loading,
+    error,
+    
+    // Getters
     isAuthenticated,
     isAdmin,
+    username,
+    email,
+    
+    // Actions
+    register,
     login,
     logout,
-    initializeFromToken,
-    decodeJWT,
-    isTokenValid,
-    checkTokenExpiration
-  }
-})
+    fetchCurrentUser,
+    clearAuth,
+    hasAdminAccess,
+    initAuth,
+  };
+});

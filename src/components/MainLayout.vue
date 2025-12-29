@@ -1,79 +1,108 @@
 <template>
   <div class="main-layout">
-    <!-- Sidebar -->
-    <Sidebar class="layout-sidebar" />
+    <Sidebar />
     
-    <!-- Main Content Area -->
-    <main class="layout-content">
+    <div class="main-content">
+      <!-- Top Bar with User Info -->
+      <div class="top-bar">
+        <div class="user-info">
+          <span class="user-name">{{ authStore.user?.username }}</span>
+          <span class="user-role" :class="roleClass">
+            {{ authStore.user?.role }}
+          </span>
+          <button @click="handleLogout" class="btn-logout">
+            Logout
+          </button>
+        </div>
+      </div>
+
+      <!-- Page Content -->
       <slot />
-    </main>
+    </div>
   </div>
 </template>
 
 <script setup>
-import Sidebar from '@/components/Sidebar.vue'
+import { computed } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+import Sidebar from './Sidebar.vue'
+
+const router = useRouter()
+const authStore = useAuthStore()
+
+const roleClass = computed(() => {
+  return authStore.isAdmin ? 'role-admin' : 'role-user'
+})
+
+function handleLogout() {
+  authStore.logout()
+  router.push('/login')
+}
 </script>
 
 <style scoped>
 .main-layout {
   display: flex;
   min-height: 100vh;
-  width: 100%;
-  position: relative;
 }
 
-/* Sidebar - Fixed width at all screen sizes */
-.layout-sidebar {
-  width: 70px;
-  flex-shrink: 0;
-  position: fixed;
-  left: 0;
-  top: 0;
-  height: 100vh;
-  overflow-y: auto;
-  z-index: 100;
-  transition: width 0.3s ease;
-}
-
-/* Main Content - Always fills remaining space */
-.layout-content {
+.main-content {
   flex: 1;
-  margin-left: 70px;
-  min-height: 100vh;
-  width: calc(100% - 70px);
-  background: #F3F4F6;
-  overflow-x: hidden;
-  transition: margin-left 0.3s ease, width 0.3s ease;
+  display: flex;
+  flex-direction: column;
 }
 
-/* Tablet and smaller screens */
-@media (max-width: 1024px) {
-  .layout-sidebar {
-    width: 70px;
-  }
-  
-  .layout-content {
-    margin-left: 70px;
-    width: calc(100% - 70px);
-  }
+.top-bar {
+  background: white;
+  padding: 1rem 2rem;
+  border-bottom: 1px solid #E5E7EB;
+  display: flex;
+  justify-content: flex-end;
 }
 
-/* Mobile screens - Sidebar overlay */
-@media (max-width: 768px) {
-  .layout-sidebar {
-    width: 70px;
-    transform: translateX(-100%);
-    transition: transform 0.3s ease;
-    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
-  }
-  
-  .layout-sidebar.mobile-open {
-    transform: translateX(0);
-  }
-  
-  .layout-content {
-    margin-left: 70px;
-    width: calc(100%-70px);
-  }
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.user-name {
+  font-weight: 600;
+  color: #374151;
+}
+
+.user-role {
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.role-admin {
+  background: #DBEAFE;
+  color: #1E40AF;
+}
+
+.role-user {
+  background: #D1FAE5;
+  color: #065F46;
+}
+
+.btn-logout {
+  padding: 0.5rem 1rem;
+  background: #EF4444;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.btn-logout:hover {
+  background: #DC2626;
 }
 </style>

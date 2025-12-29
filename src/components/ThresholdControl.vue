@@ -7,129 +7,166 @@
       </div>
       
       <!-- Current Status Badge -->
-      <div class="status-badge" :class="statusClass">
+      <div v-if="currentDeviceId" class="status-badge" :class="statusClass">
         {{ currentStatus }}
       </div>
     </div>
 
-    <!-- Current Thresholds Display -->
-    <div class="current-thresholds">
-      <div class="threshold-display">
-        <div class="threshold-label">
-          <span class="icon">📉</span>
-          <span>Current Minimum</span>
-        </div>
-        <div class="threshold-value min">{{ currentMin }}%</div>
-      </div>
-      
-      <div class="threshold-divider">→</div>
-      
-      <div class="threshold-display">
-        <div class="threshold-label">
-          <span class="icon">📈</span>
-          <span>Current Maximum</span>
-        </div>
-        <div class="threshold-value max">{{ currentMax }}%</div>
+    <!-- No Device Selected Warning -->
+    <div v-if="!currentDeviceId" class="no-device-warning">
+      <span class="warning-icon">⚠️</span>
+      <div class="warning-content">
+        <p>Please select a device from the device list to configure thresholds.</p>
       </div>
     </div>
 
-    <!-- Threshold Input Form -->
-    <form @submit.prevent="submitThresholds" class="threshold-form">
-      <div class="form-group">
-        <label for="minThreshold" class="form-label">
-          <span>Minimum Threshold (%)</span>
-          <span class="label-hint">Pump starts when water drops below this</span>
-        </label>
-        <div class="input-wrapper">
-          <input
-            id="minThreshold"
-            v-model.number="minThreshold"
-            type="number"
-            min="0"
-            max="100"
-            step="1"
-            required
-            class="form-input"
-            :class="{ 'input-error': validationError }"
-          />
-          <span class="input-unit">%</span>
+    <template v-else>
+      <!-- Current Thresholds Display -->
+      <div class="current-thresholds">
+        <div class="threshold-display">
+          <div class="threshold-label">
+            <span class="icon">📉</span>
+            <span>Current Minimum</span>
+          </div>
+          <div class="threshold-value min">{{ currentMin }}%</div>
+        </div>
+        
+        <div class="threshold-divider">→</div>
+        
+        <div class="threshold-display">
+          <div class="threshold-label">
+            <span class="icon">📈</span>
+            <span>Current Maximum</span>
+          </div>
+          <div class="threshold-value max">{{ currentMax }}%</div>
         </div>
       </div>
 
-      <div class="form-group">
-        <label for="maxThreshold" class="form-label">
-          <span>Maximum Threshold (%)</span>
-          <span class="label-hint">Pump stops when water reaches this level</span>
-        </label>
-        <div class="input-wrapper">
-          <input
-            id="maxThreshold"
-            v-model.number="maxThreshold"
-            type="number"
-            min="0"
-            max="100"
-            step="1"
-            required
-            class="form-input"
-            :class="{ 'input-error': validationError }"
-          />
-          <span class="input-unit">%</span>
+      <!-- Threshold Input Form -->
+      <form @submit.prevent="submitThresholds" class="threshold-form">
+        <div class="form-group">
+          <label for="minThreshold" class="form-label">
+            <span>Minimum Threshold (%)</span>
+            <span class="label-hint">Pump starts when water drops below this</span>
+          </label>
+          <div class="input-wrapper">
+            <input
+              id="minThreshold"
+              v-model.number="lowerThreshold"
+              type="number"
+              min="0"
+              max="100"
+              step="1"
+              required
+              class="form-input"
+              :class="{ 'input-error': validationError }"
+            />
+            <span class="input-unit">%</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="maxThreshold" class="form-label">
+            <span>Maximum Threshold (%)</span>
+            <span class="label-hint">Pump stops when water reaches this level</span>
+          </label>
+          <div class="input-wrapper">
+            <input
+              id="maxThreshold"
+              v-model.number="upperThreshold"
+              type="number"
+              min="0"
+              max="100"
+              step="1"
+              required
+              class="form-input"
+              :class="{ 'input-error': validationError }"
+            />
+            <span class="input-unit">%</span>
+          </div>
+        </div>
+
+        <!-- Validation Error -->
+        <div v-if="validationError" class="validation-error">
+          <span class="error-icon">⚠️</span>
+          <span>{{ validationError }}</span>
+        </div>
+
+        <!-- Submit Button -->
+        <button 
+          type="submit" 
+          class="btn-submit"
+          :disabled="loading || !!validationError"
+        >
+          <span class="btn-icon">{{ loading ? '' : '' }}</span>
+          <span>{{ loading ? 'Saving...' : 'Save Thresholds' }}</span>
+        </button>
+      </form>
+
+      <!-- Feedback Messages -->
+      <transition name="fade">
+        <div v-if="feedbackMessage" :class="['feedback-message', feedbackType]">
+          <span class="feedback-icon">{{ feedbackIcon }}</span>
+          <div class="feedback-content">
+            <strong>{{ feedbackTitle }}</strong>
+            <p>{{ feedbackMessage }}</p>
+          </div>
+        </div>
+      </transition>
+
+      <!-- Info Panel -->
+      <div class="info-panel">
+        <span class="info-icon">💡</span>
+        <div class="info-content">
+          <strong>Tip:</strong> Maintain at least 20% difference between min and max thresholds for optimal pump operation.
         </div>
       </div>
-
-      <!-- Validation Error -->
-      <div v-if="validationError" class="validation-error">
-        <span class="error-icon">⚠️</span>
-        <span>{{ validationError }}</span>
-      </div>
-
-      <!-- Submit Button -->
-      <button 
-        type="submit" 
-        class="btn-submit"
-        :disabled="loading || !!validationError"
-      >
-        <span class="btn-icon">{{ loading ? '⏳' : '' }}</span>
-        <span>{{ loading ? 'Saving...' : 'Save Thresholds' }}</span>
-      </button>
-    </form>
-
-    <!-- Feedback Messages -->
-    <transition name="fade">
-      <div v-if="feedbackMessage" :class="['feedback-message', feedbackType]">
-        <span class="feedback-icon">{{ feedbackIcon }}</span>
-        <div class="feedback-content">
-          <strong>{{ feedbackTitle }}</strong>
-          <p>{{ feedbackMessage }}</p>
-        </div>
-      </div>
-    </transition>
-
-    <!-- Info Panel -->
-    <div class="info-panel">
-      <span class="info-icon">💡</span>
-      <div class="info-content">
-        <strong>Tip:</strong> Maintain at least 20% difference between min and max thresholds for optimal pump operation.
-      </div>
-    </div>
+    </template>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import { useSensorStore } from '@/stores/sensors'
+import { storeToRefs } from 'pinia'
+import { useSensorsStore } from '@/stores/sensors'
+import { useThresholdsStore } from '@/stores/thresholds'
+import { thresholdAPI } from '@/utils/api'
 
-const sensorStore = useSensorStore()
+const sensorsStore = useSensorsStore()
+const thresholdsStore = useThresholdsStore()
 
-const minThreshold = ref(20)
-const maxThreshold = ref(80)
+const { latestReadings } = storeToRefs(sensorsStore)
+const { thresholds } = storeToRefs(thresholdsStore)
+
+const lowerThreshold = ref(20)
+const upperThreshold = ref(80)
 const loading = ref(false)
 const feedbackMessage = ref('')
 const feedbackType = ref('success')
 
-const currentMin = computed(() => sensorStore.thresholds.waterLevel.min)
-const currentMax = computed(() => sensorStore.thresholds.waterLevel.max)
-const currentWaterLevel = computed(() => sensorStore.currentReadings.waterLevel)
+const props = defineProps({
+  deviceId: {
+    type: Number,
+    default: null
+  }
+})
+
+const currentDeviceId = computed(() => props.deviceId)
+
+// Get thresholds from thresholdsStore correctly
+const currentThresholds = computed(() => {
+  if (!currentDeviceId.value) return null
+  return thresholds.value[currentDeviceId.value] || null
+})
+
+const currentMin = computed(() => currentThresholds.value?.lowerThreshold || 20)
+const currentMax = computed(() => currentThresholds.value?.upperThreshold || 80)
+
+const currentWaterLevel = computed(() => {
+  if (!currentDeviceId.value) return 0
+  const reading = latestReadings.value[currentDeviceId.value]
+  return reading?.waterLevel || 0
+})
 
 const currentStatus = computed(() => {
   const level = currentWaterLevel.value
@@ -146,16 +183,16 @@ const statusClass = computed(() => {
 })
 
 const validationError = computed(() => {
-  if (minThreshold.value < 0 || minThreshold.value > 100) {
+  if (lowerThreshold.value < 0 || lowerThreshold.value > 100) {
     return 'Minimum threshold must be between 0 and 100'
   }
-  if (maxThreshold.value < 0 || maxThreshold.value > 100) {
+  if (upperThreshold.value < 0 || upperThreshold.value > 100) {
     return 'Maximum threshold must be between 0 and 100'
   }
-  if (minThreshold.value >= maxThreshold.value) {
+  if (lowerThreshold.value >= upperThreshold.value) {
     return 'Minimum threshold must be less than maximum threshold'
   }
-  if (maxThreshold.value - minThreshold.value < 10) {
+  if (upperThreshold.value - lowerThreshold.value < 10) {
     return 'Thresholds should have at least 10% difference'
   }
   return null
@@ -169,46 +206,96 @@ const feedbackTitle = computed(() => {
   return feedbackType.value === 'success' ? 'Success!' : 'Error!'
 })
 
-onMounted(() => {
-  // Initialize with current values from store
-  minThreshold.value = currentMin.value
-  maxThreshold.value = currentMax.value
+onMounted(async () => {
+  if (currentDeviceId.value) {
+    await loadThresholds()
+  }
+})
+
+watch(currentDeviceId, async (newDeviceId) => {
+  console.log('🔄 Device ID changed in ThresholdControl:', newDeviceId)
+  if (newDeviceId) {
+    await loadThresholds()
+  }
 })
 
 watch([currentMin, currentMax], () => {
-  // Update form when store values change
-  minThreshold.value = currentMin.value
-  maxThreshold.value = currentMax.value
+  lowerThreshold.value = currentMin.value
+  upperThreshold.value = currentMax.value
 })
 
+async function loadThresholds() {
+  if (!currentDeviceId.value) {
+    console.warn('Cannot load thresholds: No device selected')
+    return
+  }
+  
+  console.log('Loading thresholds for device:', currentDeviceId.value)
+  
+  try {
+    // Use thresholdAPI.get() instead of thresholdAPI.getByDevice()
+    const response = await thresholdAPI.get(currentDeviceId.value)
+    
+    if (response) {
+      // Backend returns: { upperThreshold, lowerThreshold }
+      lowerThreshold.value = response.lowerThreshold || 20
+      upperThreshold.value = response.upperThreshold || 80
+      
+      // Update store
+      thresholdsStore.setThresholds(currentDeviceId.value, {
+        lowerThreshold: lowerThreshold.value,
+        upperThreshold: upperThreshold.value
+      })
+      
+      console.log('Thresholds loaded successfully')
+    }
+  } catch (error) {
+    console.error('Failed to load thresholds:', error)
+    // Use defaults on error
+    lowerThreshold.value = 20
+    upperThreshold.value = 80
+  }
+}
+
 async function submitThresholds() {
+  if (!currentDeviceId.value) {
+    feedbackMessage.value = 'Please select a device first'
+    feedbackType.value = 'error'
+    return
+  }
+  
   if (validationError.value) return
   
   loading.value = true
   feedbackMessage.value = ''
   
+  console.log('Saving thresholds for device:', currentDeviceId.value)
+  
   try {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    
-    // Update store
-    sensorStore.updateThresholds({
-      waterLevel: {
-        min: minThreshold.value,
-        max: maxThreshold.value
-      }
+    // Backend expects: { upperThreshold, lowerThreshold }
+    const response = await thresholdAPI.update(currentDeviceId.value, {
+      lowerThreshold: lowerThreshold.value,
+      upperThreshold: upperThreshold.value
     })
     
-    feedbackMessage.value = 'Thresholds updated successfully. Hardware will receive new settings shortly.'
+    // Update store with response
+    thresholdsStore.setThresholds(currentDeviceId.value, {
+      lowerThreshold: response.lowerThreshold,
+      upperThreshold: response.upperThreshold
+    })
+    
+    feedbackMessage.value = 'Thresholds updated successfully. Hardware will receive new settings via MQTT.'
     feedbackType.value = 'success'
     
-    // Clear feedback after 5 seconds
+    console.log('Thresholds saved successfully')
+    
     setTimeout(() => {
       feedbackMessage.value = ''
     }, 5000)
     
   } catch (error) {
-    feedbackMessage.value = 'Failed to update thresholds. Please try again.'
+    console.error('Failed to update thresholds:', error)
+    feedbackMessage.value = error.response?.data?.message || error.message || 'Failed to update thresholds. Please try again.'
     feedbackType.value = 'error'
     
     setTimeout(() => {
@@ -287,6 +374,32 @@ async function submitThresholds() {
 .status-high {
   background: #FEE2E2;
   color: #991B1B;
+}
+
+.no-device-warning {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: #FEF3C7;
+  border: 2px solid #F59E0B;
+  border-radius: 12px;
+}
+
+.warning-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.warning-content {
+  flex: 1;
+}
+
+.warning-content p {
+  margin: 0;
+  color: #92400E;
+  font-size: 0.9375rem;
+  line-height: 1.5;
 }
 
 .current-thresholds {
@@ -393,11 +506,6 @@ async function submitThresholds() {
   border-color: #EF4444;
 }
 
-.form-input.input-error:focus {
-  border-color: #EF4444;
-  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
-}
-
 .input-unit {
   position: absolute;
   right: 1rem;
@@ -448,11 +556,6 @@ async function submitThresholds() {
 .btn-submit:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  transform: none !important;
-}
-
-.btn-icon {
-  font-size: 1.25rem;
 }
 
 .feedback-message {
@@ -479,35 +582,10 @@ async function submitThresholds() {
   flex-shrink: 0;
 }
 
-.feedback-content {
-  flex: 1;
-}
-
 .feedback-content strong {
   display: block;
   font-weight: 700;
   margin-bottom: 0.25rem;
-}
-
-.feedback-message.success .feedback-content strong {
-  color: #065F46;
-}
-
-.feedback-message.error .feedback-content strong {
-  color: #991B1B;
-}
-
-.feedback-content p {
-  margin: 0;
-  line-height: 1.4;
-}
-
-.feedback-message.success .feedback-content p {
-  color: #065F46;
-}
-
-.feedback-message.error .feedback-content p {
-  color: #991B1B;
 }
 
 .info-panel {
