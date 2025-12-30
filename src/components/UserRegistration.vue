@@ -71,12 +71,7 @@
             <span>Role</span>
             <span class="required">*</span>
           </label>
-          <select
-            id="role"
-            v-model="formData.role"
-            class="form-select"
-            :disabled="loading"
-          >
+          <select id="role" v-model="formData.role" class="form-select" :disabled="loading">
             <option value="user">User (Read-Only)</option>
             <option value="admin">Admin (Full Access)</option>
           </select>
@@ -86,11 +81,7 @@
       <!-- Password Options -->
       <div class="password-options">
         <label class="checkbox-label">
-          <input 
-            type="checkbox" 
-            v-model="autoGeneratePassword"
-            @change="handlePasswordToggle"
-          />
+          <input type="checkbox" v-model="autoGeneratePassword" @change="handlePasswordToggle" />
           <span>Auto-generate secure password</span>
         </label>
       </div>
@@ -134,11 +125,7 @@
         </div>
       </div>
 
-      <button 
-        @click="registerUser" 
-        class="btn-register"
-        :disabled="loading"
-      >
+      <button @click="registerUser" class="btn-register" :disabled="loading">
         <span class="btn-icon">{{ loading ? '' : '' }}</span>
         <span>{{ loading ? 'Creating Account...' : 'Register User' }}</span>
       </button>
@@ -161,28 +148,31 @@
           <span class="credential-label">Full Name</span>
           <span class="credential-value">{{ registeredUser.fullName }}</span>
         </div>
-        
+
         <div class="credential-item">
           <span class="credential-label">Email</span>
           <span class="credential-value">{{ registeredUser.email }}</span>
         </div>
-        
+
         <div class="credential-item">
           <span class="credential-label">Username</span>
           <div class="credential-value-wrapper">
             <code class="credential-value">{{ registeredUser.username }}</code>
-            <button @click="copyToClipboard(registeredUser.username)" class="btn-copy" title="Copy Username">
-            </button>
+            <button
+              @click="copyToClipboard(registeredUser.username)"
+              class="btn-copy"
+              title="Copy Username"
+            ></button>
           </div>
         </div>
-        
+
         <div class="credential-item">
           <span class="credential-label">Role</span>
           <span class="role-badge" :class="`role-${registeredUser.role}`">
             {{ registeredUser.role === 'admin' ? 'Admin' : 'User' }}
           </span>
         </div>
-        
+
         <div class="credential-item">
           <span class="credential-label">User ID</span>
           <code class="credential-value">{{ registeredUser.userId }}</code>
@@ -198,10 +188,13 @@
             <p>This password will only be shown once. The user must change it on first login.</p>
           </div>
         </div>
-        
+
         <div class="password-display">
           <code class="password-value">{{ registeredUser.temporaryPassword }}</code>
-          <button @click="copyToClipboard(registeredUser.temporaryPassword)" class="btn-copy-password">
+          <button
+            @click="copyToClipboard(registeredUser.temporaryPassword)"
+            class="btn-copy-password"
+          >
             Copy Password
           </button>
         </div>
@@ -227,16 +220,12 @@
         <button @click="copyAllCredentials" class="btn-action btn-copy-all">
           Copy All Credentials
         </button>
-        <button @click="resetForm" class="btn-action btn-new">
-          Register Another User
-        </button>
+        <button @click="resetForm" class="btn-action btn-new">Register Another User</button>
       </div>
 
       <!-- Copy Feedback -->
       <transition name="fade">
-        <div v-if="copyFeedback" class="copy-feedback">
-          ✅ {{ copyFeedback }}
-        </div>
+        <div v-if="copyFeedback" class="copy-feedback">✅ {{ copyFeedback }}</div>
       </transition>
     </div>
   </div>
@@ -244,6 +233,7 @@
 
 <script setup>
 import { ref, reactive } from 'vue'
+import { userAPI } from '@/utils/api'
 
 const autoGeneratePassword = ref(true)
 const loading = ref(false)
@@ -256,7 +246,7 @@ const formData = reactive({
   username: '',
   role: 'user',
   password: '',
-  confirmPassword: ''
+  confirmPassword: '',
 })
 
 const errors = reactive({
@@ -264,7 +254,7 @@ const errors = reactive({
   email: '',
   username: '',
   password: '',
-  confirmPassword: ''
+  confirmPassword: '',
 })
 
 const registeredUser = ref({
@@ -273,7 +263,7 @@ const registeredUser = ref({
   email: '',
   username: '',
   role: '',
-  temporaryPassword: ''
+  temporaryPassword: '',
 })
 
 function clearError(field) {
@@ -291,13 +281,13 @@ function handlePasswordToggle() {
 
 function validateForm() {
   let isValid = true
-  
+
   // Full Name
   if (!formData.fullName.trim()) {
     errors.fullName = 'Full name is required'
     isValid = false
   }
-  
+
   // Email
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   if (!formData.email.trim()) {
@@ -307,7 +297,7 @@ function validateForm() {
     errors.email = 'Invalid email format'
     isValid = false
   }
-  
+
   // Username
   if (!formData.username.trim()) {
     errors.username = 'Username is required'
@@ -326,7 +316,7 @@ function validateForm() {
       errors.password = 'Password must be at least 8 characters'
       isValid = false
     }
-    
+
     if (!formData.confirmPassword) {
       errors.confirmPassword = 'Please confirm password'
       isValid = false
@@ -335,7 +325,7 @@ function validateForm() {
       isValid = false
     }
   }
-  
+
   return isValid
 }
 
@@ -350,34 +340,39 @@ function generateSecurePassword() {
 
 async function registerUser() {
   if (!validateForm()) return
-  
+
   loading.value = true
-  
+
   try {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    
-    // Generate user ID
-    const userId = `USER-${Math.random().toString(36).substring(2, 10).toUpperCase()}`
-    
     // Generate or use provided password
-    const tempPassword = autoGeneratePassword.value 
-      ? generateSecurePassword() 
-      : formData.password
-    
-    registeredUser.value = {
-      userId: userId,
-      fullName: formData.fullName,
-      email: formData.email,
+    const tempPassword = autoGeneratePassword.value ? generateSecurePassword() : formData.password
+
+    // Call actual backend API to create user
+    const response = await userAPI.createUser({
       username: formData.username,
+      email: formData.email,
+      password: tempPassword,
       role: formData.role,
-      temporaryPassword: tempPassword
+    })
+
+    // Store registration details to show user
+    registeredUser.value = {
+      userId: response.user.id,
+      fullName: formData.fullName,
+      email: response.user.email,
+      username: response.user.username,
+      role: response.user.role,
+      temporaryPassword: tempPassword,
     }
-    
+
     showSuccess.value = true
-    
   } catch (error) {
-    errors.username = 'Failed to create user. Please try again.'
+    console.error('User registration error:', error)
+    const errorMessage =
+      error.response?.data?.message ||
+      error.response?.data ||
+      'Failed to create user. Please try again.'
+    errors.username = errorMessage
   } finally {
     loading.value = false
   }
@@ -407,15 +402,15 @@ Temporary Password: ${registeredUser.value.temporaryPassword}
 - This is a temporary password
 - Must be changed on first login
 - Keep this information secure`
-  
+
   copyToClipboard(credentials)
 }
 
 function resetForm() {
-  Object.keys(formData).forEach(key => {
+  Object.keys(formData).forEach((key) => {
     formData[key] = key === 'role' ? 'user' : ''
   })
-  Object.keys(errors).forEach(key => {
+  Object.keys(errors).forEach((key) => {
     errors[key] = ''
   })
   autoGeneratePassword.value = true
@@ -426,7 +421,7 @@ function resetForm() {
     email: '',
     username: '',
     role: '',
-    temporaryPassword: ''
+    temporaryPassword: '',
   }
 }
 </script>
@@ -437,7 +432,7 @@ function resetForm() {
   border-radius: 16px;
   padding: 1.5rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  border: 2px solid #8B5CF6;
+  border: 2px solid #8b5cf6;
   transition: all 0.3s ease;
   position: relative;
   width: 100%;
@@ -451,9 +446,8 @@ function resetForm() {
 .registration-card:hover {
   box-shadow: 0 8px 20px rgba(139, 92, 246, 0.2);
   transform: translateY(-4px);
-  border-color: #8B5CF6;
+  border-color: #8b5cf6;
 }
-
 
 .card-header {
   display: flex;
@@ -467,13 +461,13 @@ function resetForm() {
 .title-section h3 {
   font-size: 1.25rem;
   font-weight: 700;
-  color: #1F2937;
+  color: #1f2937;
   margin: 0 0 0.25rem 0;
 }
 
 .subtitle {
   font-size: 0.875rem;
-  color: #6B7280;
+  color: #6b7280;
   margin: 0;
 }
 
@@ -505,7 +499,7 @@ function resetForm() {
 }
 
 .required {
-  color: #EF4444;
+  color: #ef4444;
   font-weight: 700;
 }
 
@@ -513,10 +507,10 @@ function resetForm() {
 .form-select {
   width: 100%;
   padding: 0.875rem 1rem;
-  border: 2px solid #E5E7EB;
+  border: 2px solid #e5e7eb;
   border-radius: 10px;
   font-size: 1rem;
-  color: #1F2937;
+  color: #1f2937;
   background: white;
   transition: all 0.2s;
 }
@@ -524,7 +518,7 @@ function resetForm() {
 .form-input:focus,
 .form-select:focus {
   outline: none;
-  border-color: #8B5CF6;
+  border-color: #8b5cf6;
   box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
 }
 
@@ -535,20 +529,20 @@ function resetForm() {
 }
 
 .form-input.input-error {
-  border-color: #EF4444;
+  border-color: #ef4444;
 }
 
 .error-text {
-  color: #EF4444;
+  color: #ef4444;
   font-size: 0.8125rem;
   font-weight: 500;
 }
 
 .password-options {
   padding: 1rem;
-  background: #F9FAFB;
+  background: #f9fafb;
   border-radius: 10px;
-  border: 2px solid #E5E7EB;
+  border: 2px solid #e5e7eb;
 }
 
 .checkbox-label {
@@ -561,7 +555,7 @@ function resetForm() {
   font-weight: 500;
 }
 
-.checkbox-label input[type="checkbox"] {
+.checkbox-label input[type='checkbox'] {
   width: 18px;
   height: 18px;
   cursor: pointer;
@@ -573,7 +567,7 @@ function resetForm() {
   justify-content: center;
   gap: 0.75rem;
   padding: 1rem 1.5rem;
-  background: linear-gradient(135deg, #8B5CF6, #7C3AED);
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
   color: white;
   border: none;
   border-radius: 12px;
@@ -609,8 +603,8 @@ function resetForm() {
   display: flex;
   gap: 1rem;
   padding: 1.5rem;
-  background: linear-gradient(135deg, #D1FAE5, #A7F3D0);
-  border: 2px solid #10B981;
+  background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+  border: 2px solid #10b981;
   border-radius: 12px;
 }
 
@@ -622,7 +616,7 @@ function resetForm() {
 .success-header h4 {
   font-size: 1.125rem;
   font-weight: 700;
-  color: #065F46;
+  color: #065f46;
   margin: 0 0 0.25rem 0;
 }
 
@@ -643,15 +637,15 @@ function resetForm() {
   flex-direction: column;
   gap: 0.5rem;
   padding: 1rem;
-  background: #F9FAFB;
-  border: 2px solid #E5E7EB;
+  background: #f9fafb;
+  border: 2px solid #e5e7eb;
   border-radius: 10px;
 }
 
 .credential-label {
   font-size: 0.75rem;
   font-weight: 600;
-  color: #6B7280;
+  color: #6b7280;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -665,7 +659,7 @@ function resetForm() {
 .credential-value {
   font-size: 0.9375rem;
   font-weight: 600;
-  color: #1F2937;
+  color: #1f2937;
   font-family: 'Courier New', monospace;
   flex: 1;
   word-break: break-all;
@@ -682,19 +676,19 @@ function resetForm() {
 }
 
 .role-admin {
-  background: #DBEAFE;
-  color: #1E40AF;
+  background: #dbeafe;
+  color: #1e40af;
 }
 
 .role-user {
-  background: #E0E7FF;
-  color: #4338CA;
+  background: #e0e7ff;
+  color: #4338ca;
 }
 
 .btn-copy {
   padding: 0.5rem;
   background: white;
-  border: 2px solid #E5E7EB;
+  border: 2px solid #e5e7eb;
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s;
@@ -703,14 +697,14 @@ function resetForm() {
 }
 
 .btn-copy:hover {
-  border-color: #8B5CF6;
-  background: #F5F3FF;
+  border-color: #8b5cf6;
+  background: #f5f3ff;
 }
 
 .password-section {
   padding: 1.5rem;
-  background: linear-gradient(135deg,#F9FAFB);
-  border: 2px solid #F5F3FF;
+  background: linear-gradient(135deg, #f9fafb);
+  border: 2px solid #f5f3ff;
   border-radius: 12px;
 }
 
@@ -728,13 +722,13 @@ function resetForm() {
 .password-header strong {
   display: block;
   font-size: 1rem;
-  color: #6B7280;
+  color: #6b7280;
   margin-bottom: 0.25rem;
 }
 
 .password-header p {
   font-size: 0.875rem;
-  color: #6B7280;
+  color: #6b7280;
   margin: 0;
 }
 
@@ -744,7 +738,7 @@ function resetForm() {
   gap: 1rem;
   padding: 1rem;
   background: white;
-  border: 2px solid #1E40AF;
+  border: 2px solid #1e40af;
   border-radius: 10px;
 }
 
@@ -752,18 +746,18 @@ function resetForm() {
   flex: 1;
   font-size: 1.125rem;
   font-weight: 700;
-  color: #6B7280;
+  color: #6b7280;
   font-family: 'Courier New', monospace;
   word-break: break-all;
   padding: 0.5rem;
-  background: #E0E7FF;
+  background: #e0e7ff;
   border-radius: 6px;
   letter-spacing: 1px;
 }
 
 .btn-copy-password {
   padding: 0.75rem 1.25rem;
-  background: linear-gradient(135deg, #1E40AF);
+  background: linear-gradient(135deg, #1e40af);
   color: white;
   border: none;
   border-radius: 8px;
@@ -784,8 +778,8 @@ function resetForm() {
   display: flex;
   gap: 1rem;
   padding: 1.5rem;
-  background: linear-gradient(135deg, #FEE2E2, #FECACA);
-  border: 2px solid #EF4444;
+  background: linear-gradient(135deg, #fee2e2, #fecaca);
+  border: 2px solid #ef4444;
   border-radius: 12px;
 }
 
@@ -801,14 +795,14 @@ function resetForm() {
 .warning-content strong {
   display: block;
   font-size: 0.9375rem;
-  color: #991B1B;
+  color: #991b1b;
   margin-bottom: 0.5rem;
 }
 
 .warning-content ul {
   margin: 0;
   padding-left: 1.25rem;
-  color: #991B1B;
+  color: #991b1b;
   font-size: 0.8125rem;
   line-height: 1.6;
 }
@@ -838,7 +832,7 @@ function resetForm() {
 }
 
 .btn-copy-all {
-  background: linear-gradient(135deg, #3B82F6, #2563EB);
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
   color: white;
 }
 
@@ -848,7 +842,7 @@ function resetForm() {
 }
 
 .btn-new {
-  background: linear-gradient(135deg, #10B981, #059669);
+  background: linear-gradient(135deg, #10b981, #059669);
   color: white;
 }
 
@@ -859,10 +853,10 @@ function resetForm() {
 
 .copy-feedback {
   padding: 1rem;
-  background: #D1FAE5;
-  border: 2px solid #10B981;
+  background: #d1fae5;
+  border: 2px solid #10b981;
   border-radius: 10px;
-  color: #065F46;
+  color: #065f46;
   font-weight: 600;
   text-align: center;
 }
@@ -882,23 +876,23 @@ function resetForm() {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .form-row {
     grid-template-columns: 1fr;
   }
-  
+
   .credentials-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .action-buttons {
     grid-template-columns: 1fr;
   }
-  
+
   .password-display {
     flex-direction: column;
   }
-  
+
   .btn-copy-password {
     width: 100%;
   }

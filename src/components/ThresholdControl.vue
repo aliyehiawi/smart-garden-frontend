@@ -5,7 +5,7 @@
         <h3>Threshold Control</h3>
         <p class="subtitle">Configure water level boundaries</p>
       </div>
-      
+
       <!-- Current Status Badge -->
       <div v-if="currentDeviceId" class="status-badge" :class="statusClass">
         {{ currentStatus }}
@@ -30,9 +30,9 @@
           </div>
           <div class="threshold-value min">{{ currentMin }}%</div>
         </div>
-        
+
         <div class="threshold-divider">→</div>
-        
+
         <div class="threshold-display">
           <div class="threshold-label">
             <span class="icon">📈</span>
@@ -93,11 +93,7 @@
         </div>
 
         <!-- Submit Button -->
-        <button 
-          type="submit" 
-          class="btn-submit"
-          :disabled="loading || !!validationError"
-        >
+        <button type="submit" class="btn-submit" :disabled="loading || !!validationError">
           <span class="btn-icon">{{ loading ? '' : '' }}</span>
           <span>{{ loading ? 'Saving...' : 'Save Thresholds' }}</span>
         </button>
@@ -118,7 +114,8 @@
       <div class="info-panel">
         <span class="info-icon">💡</span>
         <div class="info-content">
-          <strong>Tip:</strong> Maintain at least 20% difference between min and max thresholds for optimal pump operation.
+          <strong>Tip:</strong> Maintain at least 20% difference between min and max thresholds for
+          optimal pump operation.
         </div>
       </div>
     </template>
@@ -147,8 +144,8 @@ const feedbackType = ref('success')
 const props = defineProps({
   deviceId: {
     type: Number,
-    default: null
-  }
+    default: null,
+  },
 })
 
 const currentDeviceId = computed(() => props.deviceId)
@@ -159,8 +156,12 @@ const currentThresholds = computed(() => {
   return thresholds.value[currentDeviceId.value] || null
 })
 
-const currentMin = computed(() => currentThresholds.value?.lowerThreshold || 20)
-const currentMax = computed(() => currentThresholds.value?.upperThreshold || 80)
+const currentMin = computed(
+  () => currentThresholds.value?.minThreshold || currentThresholds.value?.lowerThreshold || 20,
+)
+const currentMax = computed(
+  () => currentThresholds.value?.maxThreshold || currentThresholds.value?.upperThreshold || 80,
+)
 
 const currentWaterLevel = computed(() => {
   if (!currentDeviceId.value) return 0
@@ -229,24 +230,26 @@ async function loadThresholds() {
     console.warn('Cannot load thresholds: No device selected')
     return
   }
-  
+
   console.log('Loading thresholds for device:', currentDeviceId.value)
-  
+
   try {
     // Use thresholdAPI.get() instead of thresholdAPI.getByDevice()
     const response = await thresholdAPI.get(currentDeviceId.value)
-    
+
     if (response) {
-      // Backend returns: { upperThreshold, lowerThreshold }
-      lowerThreshold.value = response.lowerThreshold || 20
-      upperThreshold.value = response.upperThreshold || 80
-      
-      // Update store
+      // Backend returns: { minThreshold, maxThreshold }
+      lowerThreshold.value = response.minThreshold || response.lowerThreshold || 20
+      upperThreshold.value = response.maxThreshold || response.upperThreshold || 80
+
+      // Update store with consistent naming
       thresholdsStore.setThresholds(currentDeviceId.value, {
+        minThreshold: lowerThreshold.value,
+        maxThreshold: upperThreshold.value,
         lowerThreshold: lowerThreshold.value,
-        upperThreshold: upperThreshold.value
+        upperThreshold: upperThreshold.value,
       })
-      
+
       console.log('Thresholds loaded successfully')
     }
   } catch (error) {
@@ -263,41 +266,46 @@ async function submitThresholds() {
     feedbackType.value = 'error'
     return
   }
-  
+
   if (validationError.value) return
-  
+
   loading.value = true
   feedbackMessage.value = ''
-  
+
   console.log('Saving thresholds for device:', currentDeviceId.value)
-  
+
   try {
-    // Backend expects: { upperThreshold, lowerThreshold }
+    // Backend expects: { minThreshold, maxThreshold }
     const response = await thresholdAPI.update(currentDeviceId.value, {
-      lowerThreshold: lowerThreshold.value,
-      upperThreshold: upperThreshold.value
+      minThreshold: lowerThreshold.value,
+      maxThreshold: upperThreshold.value,
     })
-    
+
     // Update store with response
     thresholdsStore.setThresholds(currentDeviceId.value, {
-      lowerThreshold: response.lowerThreshold,
-      upperThreshold: response.upperThreshold
+      minThreshold: response.minThreshold,
+      maxThreshold: response.maxThreshold,
+      lowerThreshold: response.minThreshold,
+      upperThreshold: response.maxThreshold,
     })
-    
-    feedbackMessage.value = 'Thresholds updated successfully. Hardware will receive new settings via MQTT.'
+
+    feedbackMessage.value =
+      'Thresholds updated successfully. Hardware will receive new settings via MQTT.'
     feedbackType.value = 'success'
-    
+
     console.log('Thresholds saved successfully')
-    
+
     setTimeout(() => {
       feedbackMessage.value = ''
     }, 5000)
-    
   } catch (error) {
     console.error('Failed to update thresholds:', error)
-    feedbackMessage.value = error.response?.data?.message || error.message || 'Failed to update thresholds. Please try again.'
+    feedbackMessage.value =
+      error.response?.data?.message ||
+      error.message ||
+      'Failed to update thresholds. Please try again.'
     feedbackType.value = 'error'
-    
+
     setTimeout(() => {
       feedbackMessage.value = ''
     }, 5000)
@@ -313,7 +321,7 @@ async function submitThresholds() {
   border-radius: 16px;
   padding: 1.5rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  border: 2px solid #10B981;
+  border: 2px solid #10b981;
   transition: all 0.3s ease;
   position: relative;
   width: 100%;
@@ -342,13 +350,13 @@ async function submitThresholds() {
 .title-section h3 {
   font-size: 1.25rem;
   font-weight: 700;
-  color: #1F2937;
+  color: #1f2937;
   margin: 0 0 0.25rem 0;
 }
 
 .subtitle {
   font-size: 0.875rem;
-  color: #6B7280;
+  color: #6b7280;
   margin: 0;
 }
 
@@ -362,18 +370,18 @@ async function submitThresholds() {
 }
 
 .status-normal {
-  background: #D1FAE5;
-  color: #065F46;
+  background: #d1fae5;
+  color: #065f46;
 }
 
 .status-low {
-  background: #FEF3C7;
-  color: #92400E;
+  background: #fef3c7;
+  color: #92400e;
 }
 
 .status-high {
-  background: #FEE2E2;
-  color: #991B1B;
+  background: #fee2e2;
+  color: #991b1b;
 }
 
 .no-device-warning {
@@ -381,8 +389,8 @@ async function submitThresholds() {
   align-items: center;
   gap: 1rem;
   padding: 1.5rem;
-  background: #FEF3C7;
-  border: 2px solid #F59E0B;
+  background: #fef3c7;
+  border: 2px solid #f59e0b;
   border-radius: 12px;
 }
 
@@ -397,7 +405,7 @@ async function submitThresholds() {
 
 .warning-content p {
   margin: 0;
-  color: #92400E;
+  color: #92400e;
   font-size: 0.9375rem;
   line-height: 1.5;
 }
@@ -408,9 +416,9 @@ async function submitThresholds() {
   justify-content: space-between;
   gap: 1rem;
   padding: 1.5rem;
-  background: linear-gradient(135deg, #F0FDF4, #DCFCE7);
+  background: linear-gradient(135deg, #f0fdf4, #dcfce7);
   border-radius: 12px;
-  border: 2px solid #10B981;
+  border: 2px solid #10b981;
 }
 
 .threshold-display {
@@ -425,7 +433,7 @@ async function submitThresholds() {
   align-items: center;
   gap: 0.5rem;
   font-size: 0.875rem;
-  color: #6B7280;
+  color: #6b7280;
   font-weight: 500;
 }
 
@@ -439,16 +447,16 @@ async function submitThresholds() {
 }
 
 .threshold-value.min {
-  color: #F59E0B;
+  color: #f59e0b;
 }
 
 .threshold-value.max {
-  color: #EF4444;
+  color: #ef4444;
 }
 
 .threshold-divider {
   font-size: 1.5rem;
-  color: #D1D5DB;
+  color: #d1d5db;
   flex-shrink: 0;
 }
 
@@ -475,7 +483,7 @@ async function submitThresholds() {
 
 .label-hint {
   font-weight: 400;
-  color: #9CA3AF;
+  color: #9ca3af;
   font-size: 0.75rem;
 }
 
@@ -488,29 +496,29 @@ async function submitThresholds() {
 .form-input {
   width: 100%;
   padding: 0.875rem 3rem 0.875rem 1rem;
-  border: 2px solid #E5E7EB;
+  border: 2px solid #e5e7eb;
   border-radius: 10px;
   font-size: 1rem;
-  color: #1F2937;
+  color: #1f2937;
   background: white;
   transition: all 0.2s;
 }
 
 .form-input:focus {
   outline: none;
-  border-color: #10B981;
+  border-color: #10b981;
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
 }
 
 .form-input.input-error {
-  border-color: #EF4444;
+  border-color: #ef4444;
 }
 
 .input-unit {
   position: absolute;
   right: 1rem;
   font-weight: 600;
-  color: #6B7280;
+  color: #6b7280;
   pointer-events: none;
 }
 
@@ -519,10 +527,10 @@ async function submitThresholds() {
   align-items: center;
   gap: 0.75rem;
   padding: 0.875rem 1rem;
-  background: #FEE2E2;
-  border: 2px solid #EF4444;
+  background: #fee2e2;
+  border: 2px solid #ef4444;
   border-radius: 10px;
-  color: #991B1B;
+  color: #991b1b;
   font-size: 0.875rem;
   font-weight: 500;
 }
@@ -537,7 +545,7 @@ async function submitThresholds() {
   justify-content: center;
   gap: 0.75rem;
   padding: 1rem 1.5rem;
-  background: linear-gradient(135deg, #10B981, #059669);
+  background: linear-gradient(135deg, #10b981, #059669);
   color: white;
   border: none;
   border-radius: 12px;
@@ -568,13 +576,15 @@ async function submitThresholds() {
 }
 
 .feedback-message.success {
-  background: #D1FAE5;
-  border: 2px solid #10B981;
+  background: #d1fae5;
+  border: 2px solid #10b981;
+  color: #065f46;
 }
 
 .feedback-message.error {
-  background: #FEE2E2;
-  border: 2px solid #EF4444;
+  background: #fee2e2;
+  border: 2px solid #ef4444;
+  color: #991b1b;
 }
 
 .feedback-icon {
@@ -592,8 +602,8 @@ async function submitThresholds() {
   display: flex;
   gap: 1rem;
   padding: 1rem;
-  background: #EFF6FF;
-  border: 2px solid #3B82F6;
+  background: #eff6ff;
+  border: 2px solid #3b82f6;
   border-radius: 10px;
 }
 
@@ -604,7 +614,7 @@ async function submitThresholds() {
 
 .info-content {
   font-size: 0.8125rem;
-  color: #1E40AF;
+  color: #1e40af;
   line-height: 1.4;
 }
 
@@ -629,12 +639,12 @@ async function submitThresholds() {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .current-thresholds {
     flex-direction: column;
     text-align: center;
   }
-  
+
   .threshold-divider {
     transform: rotate(90deg);
   }

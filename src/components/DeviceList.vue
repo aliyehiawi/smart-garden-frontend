@@ -5,18 +5,18 @@
         <h3>Devices List</h3>
         <p class="subtitle">Manage your IoT devices</p>
       </div>
-      
+
       <div class="header-actions">
         <div class="search-box">
           <span class="search-icon">🔍</span>
-          <input 
-            v-model="searchQuery" 
-            type="text" 
+          <input
+            v-model="searchQuery"
+            type="text"
             placeholder="Search devices..."
             @input="handleSearch"
           />
         </div>
-        
+
         <select v-model="statusFilter" @change="handleFilter" class="filter-select">
           <option value="all">All Status</option>
           <option value="online">Online Only</option>
@@ -64,10 +64,10 @@
               <p>📡 No devices found. Register a device to get started!</p>
             </td>
           </tr>
-          <tr 
+          <tr
             v-else
-            v-for="device in paginatedData" 
-            :key="device.id" 
+            v-for="device in paginatedData"
+            :key="device.id"
             class="data-row"
             :class="{ 'row-selected': selectedDeviceId === device.id }"
           >
@@ -85,22 +85,26 @@
             <td class="timestamp-cell">{{ formatTimestamp(device.lastUpdate) }}</td>
             <td class="actions-cell">
               <div class="action-buttons">
-                <button 
-                  @click="controlPump(device)" 
+                <button
+                  @click="controlPump(device)"
                   class="btn-action btn-control"
                   :class="{ 'btn-selected': selectedDeviceId === device.id }"
                   title="Control Pump"
                 >
                   {{ selectedDeviceId === device.id ? 'Selected' : 'Control' }}
                 </button>
-                
-                <button @click="viewDevice(device)" class="btn-action btn-view" title="View Details">
+
+                <button
+                  @click="viewDevice(device)"
+                  class="btn-action btn-view"
+                  title="View Details"
+                >
                   View
                 </button>
-                <button 
-                  v-if="authStore.isAdmin" 
-                  @click="deleteDevice(device)" 
-                  class="btn-action btn-delete" 
+                <button
+                  v-if="authStore.isAdmin"
+                  @click="deleteDevice(device)"
+                  class="btn-action btn-delete"
                   title="Delete Device"
                 >
                   Delete
@@ -116,19 +120,15 @@
       <div class="pagination-info">
         Showing {{ startIndex + 1 }} to {{ endIndex }} of {{ filteredData.length }} devices
       </div>
-      
+
       <div class="pagination-controls">
-        <button 
-          @click="previousPage" 
-          :disabled="currentPage === 1"
-          class="btn-page"
-        >
+        <button @click="previousPage" :disabled="currentPage === 1" class="btn-page">
           ← Previous
         </button>
-        
+
         <div class="page-numbers">
-          <button 
-            v-for="page in visiblePages" 
+          <button
+            v-for="page in visiblePages"
             :key="page"
             @click="goToPage(page)"
             :class="['btn-page-num', { active: currentPage === page }]"
@@ -136,16 +136,12 @@
             {{ page }}
           </button>
         </div>
-        
-        <button 
-          @click="nextPage" 
-          :disabled="currentPage === totalPages"
-          class="btn-page"
-        >
+
+        <button @click="nextPage" :disabled="currentPage === totalPages" class="btn-page">
           Next →
         </button>
       </div>
-      
+
       <div class="rows-per-page">
         <label>Rows per page:</label>
         <select v-model="rowsPerPage" @change="handleRowsChange">
@@ -222,7 +218,8 @@ const selectedDeviceId = ref(null)
 
 // Properly map devices data with thresholds
 const devicesData = computed(() => {
-  return devices.value.map(device => {
+  if (!Array.isArray(devices.value)) return []
+  return devices.value.map((device) => {
     const deviceThresholds = thresholds.value[device.id]
     return {
       id: device.id,
@@ -231,8 +228,8 @@ const devicesData = computed(() => {
       status: 'online',
       lastUpdate: device.updatedAt || new Date().toISOString(),
       registeredAt: device.createdAt || new Date().toISOString(),
-      minThreshold: deviceThresholds?.lowerThreshold || 20,
-      maxThreshold: deviceThresholds?.upperThreshold || 80
+      minThreshold: deviceThresholds?.minThreshold || deviceThresholds?.lowerThreshold || 20,
+      maxThreshold: deviceThresholds?.maxThreshold || deviceThresholds?.upperThreshold || 80,
     }
   })
 })
@@ -241,7 +238,7 @@ const devicesData = computed(() => {
 async function loadDevices() {
   try {
     await devicesStore.fetchDevices()
-    
+
     // Load thresholds for all devices
     for (const device of devices.value) {
       await thresholdsStore.fetchThresholds(device.id)
@@ -257,47 +254,49 @@ onMounted(() => {
 
 const filteredData = computed(() => {
   let data = devicesData.value
-  
+
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
-    data = data.filter(device => 
-      device.name.toLowerCase().includes(query) ||
-      device.deviceId.toString().includes(query)
+    data = data.filter(
+      (device) =>
+        device.name.toLowerCase().includes(query) || device.deviceId.toString().includes(query),
     )
   }
-  
+
   if (statusFilter.value !== 'all') {
-    data = data.filter(device => device.status === statusFilter.value)
+    data = data.filter((device) => device.status === statusFilter.value)
   }
-  
+
   return data
 })
 
 const sortedData = computed(() => {
   const data = [...filteredData.value]
-  
+
   data.sort((a, b) => {
     let aVal = a[sortColumn.value]
     let bVal = b[sortColumn.value]
-    
+
     if (sortColumn.value === 'lastUpdate') {
       aVal = new Date(aVal).getTime()
       bVal = new Date(bVal).getTime()
     }
-    
+
     if (sortDirection.value === 'asc') {
       return aVal > bVal ? 1 : -1
     } else {
       return aVal < bVal ? 1 : -1
     }
   })
-  
+
   return data
 })
 
 const totalPages = computed(() => Math.ceil(sortedData.value.length / rowsPerPage.value))
 const startIndex = computed(() => (currentPage.value - 1) * rowsPerPage.value)
-const endIndex = computed(() => Math.min(startIndex.value + rowsPerPage.value, sortedData.value.length))
+const endIndex = computed(() =>
+  Math.min(startIndex.value + rowsPerPage.value, sortedData.value.length),
+)
 
 const paginatedData = computed(() => {
   return sortedData.value.slice(startIndex.value, endIndex.value)
@@ -308,15 +307,15 @@ const visiblePages = computed(() => {
   const maxVisible = 5
   let start = Math.max(1, currentPage.value - Math.floor(maxVisible / 2))
   let end = Math.min(totalPages.value, start + maxVisible - 1)
-  
+
   if (end - start < maxVisible - 1) {
     start = Math.max(1, end - maxVisible + 1)
   }
-  
+
   for (let i = start; i <= end; i++) {
     pages.push(i)
   }
-  
+
   return pages
 })
 
@@ -366,7 +365,7 @@ function formatTimestamp(timestamp) {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
   })
 }
 
@@ -385,17 +384,17 @@ async function deleteDevice(device) {
     try {
       // Use devicesStore.deleteDevice
       const result = await devicesStore.deleteDevice(device.id)
-      
+
       if (result.success) {
         // Clear selection if deleted device was selected
         if (selectedDeviceId.value === device.id) {
           selectedDeviceId.value = null
           emit('pump-control-selected', null)
         }
-        
+
         // Reload devices
         await loadDevices()
-        
+
         console.log('Device deleted:', device.id)
       } else {
         alert('Failed to delete device: ' + result.error)
@@ -425,7 +424,7 @@ function controlPump(device) {
   border-radius: 16px;
   padding: 1.5rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  border: 2px solid #F59E0B;
+  border: 2px solid #f59e0b;
   transition: all 0.3s ease;
   width: 100%;
   min-width: 0;
@@ -438,7 +437,7 @@ function controlPump(device) {
 .table-card:hover {
   box-shadow: 0 8px 20px rgba(245, 158, 11, 0.2);
   transform: translateY(-4px);
-  border-color: #F59E0B;
+  border-color: #f59e0b;
 }
 
 .card-header {
@@ -453,13 +452,13 @@ function controlPump(device) {
 .title-section h3 {
   font-size: 1.25rem;
   font-weight: 700;
-  color: #1F2937;
+  color: #1f2937;
   margin: 0 0 0.25rem 0;
 }
 
 .subtitle {
   font-size: 0.875rem;
-  color: #6B7280;
+  color: #6b7280;
   margin: 0;
 }
 
@@ -475,14 +474,14 @@ function controlPump(device) {
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
-  background: #F9FAFB;
-  border: 2px solid #E5E7EB;
+  background: #f9fafb;
+  border: 2px solid #e5e7eb;
   border-radius: 8px;
   transition: all 0.2s;
 }
 
 .search-box:focus-within {
-  border-color: #F59E0B;
+  border-color: #f59e0b;
   background: white;
 }
 
@@ -501,7 +500,7 @@ function controlPump(device) {
 
 .filter-select {
   padding: 0.5rem 1rem;
-  border: 2px solid #E5E7EB;
+  border: 2px solid #e5e7eb;
   border-radius: 8px;
   font-size: 0.875rem;
   font-weight: 500;
@@ -513,14 +512,14 @@ function controlPump(device) {
 }
 
 .filter-select:hover {
-  border-color: #F59E0B;
+  border-color: #f59e0b;
   background: #ffeed2;
 }
 
 .table-container {
   overflow-x: auto;
   border-radius: 12px;
-  border: 1px solid #E5E7EB;
+  border: 1px solid #e5e7eb;
 }
 
 .data-table {
@@ -530,7 +529,7 @@ function controlPump(device) {
 }
 
 .data-table thead {
-  background: linear-gradient(135deg, #F3F4F6, #E5E7EB);
+  background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
 }
 
 .data-table th {
@@ -538,7 +537,7 @@ function controlPump(device) {
   text-align: left;
   font-weight: 600;
   color: #374151;
-  border-bottom: 2px solid #E5E7EB;
+  border-bottom: 2px solid #e5e7eb;
   white-space: nowrap;
 }
 
@@ -549,7 +548,7 @@ function controlPump(device) {
 }
 
 .data-table th.sortable:hover {
-  background: #E5E7EB;
+  background: #e5e7eb;
 }
 
 .th-content {
@@ -566,7 +565,7 @@ function controlPump(device) {
 
 .data-table td {
   padding: 1rem;
-  border-bottom: 1px solid #F3F4F6;
+  border-bottom: 1px solid #f3f4f6;
 }
 
 .data-row {
@@ -574,12 +573,12 @@ function controlPump(device) {
 }
 
 .data-row:hover {
-  background: #FFFBEB;
+  background: #fffbeb;
 }
 
 .data-row.row-selected {
-  background: #DBEAFE;
-  border-left: 4px solid #3B82F6;
+  background: #dbeafe;
+  border-left: 4px solid #3b82f6;
 }
 
 .device-info {
@@ -594,16 +593,16 @@ function controlPump(device) {
 
 .device-name {
   font-weight: 600;
-  color: #1F2937;
+  color: #1f2937;
 }
 
 .device-id {
   padding: 0.25rem 0.5rem;
-  background: #F3F4F6;
+  background: #f3f4f6;
   border-radius: 4px;
   font-family: 'Courier New', monospace;
   font-size: 0.75rem;
-  color: #6B7280;
+  color: #6b7280;
 }
 
 .threshold-cell {
@@ -612,7 +611,7 @@ function controlPump(device) {
 }
 
 .timestamp-cell {
-  color: #6B7280;
+  color: #6b7280;
   font-size: 0.8125rem;
 }
 
@@ -634,7 +633,7 @@ function controlPump(device) {
 }
 
 .btn-control {
-  background: linear-gradient(135deg, #3B82F6, #2563EB);
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
   color: white;
 }
 
@@ -644,12 +643,12 @@ function controlPump(device) {
 }
 
 .btn-control.btn-selected {
-  background: linear-gradient(135deg, #10B981, #059669);
+  background: linear-gradient(135deg, #10b981, #059669);
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
 }
 
 .btn-view {
-  background: linear-gradient(135deg, #8B5CF6, #7C3AED);
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
   color: white;
 }
 
@@ -659,7 +658,7 @@ function controlPump(device) {
 }
 
 .btn-delete {
-  background: linear-gradient(135deg, #EF4444, #DC2626);
+  background: linear-gradient(135deg, #ef4444, #dc2626);
   color: white;
 }
 
@@ -668,24 +667,27 @@ function controlPump(device) {
   box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
 }
 
-.loading-state, .empty-state {
+.loading-state,
+.empty-state {
   text-align: center;
   padding: 3rem 1rem !important;
-  color: #9CA3AF;
+  color: #9ca3af;
 }
 
 .spinner {
   width: 40px;
   height: 40px;
-  border: 4px solid #E5E7EB;
-  border-top-color: #F59E0B;
+  border: 4px solid #e5e7eb;
+  border-top-color: #f59e0b;
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin: 0 auto 1rem;
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .empty-state p {
@@ -704,7 +706,7 @@ function controlPump(device) {
 
 .pagination-info {
   font-size: 0.875rem;
-  color: #6B7280;
+  color: #6b7280;
 }
 
 .pagination-controls {
@@ -715,7 +717,7 @@ function controlPump(device) {
 
 .btn-page {
   padding: 0.5rem 1rem;
-  border: 2px solid #E5E7EB;
+  border: 2px solid #e5e7eb;
   background: white;
   border-radius: 8px;
   font-size: 0.875rem;
@@ -726,7 +728,7 @@ function controlPump(device) {
 }
 
 .btn-page:hover:not(:disabled) {
-  border-color: #F59E0B;
+  border-color: #f59e0b;
   background: #ffeed2;
 }
 
@@ -744,7 +746,7 @@ function controlPump(device) {
   width: 40px;
   height: 40px;
   padding: 0;
-  border: 2px solid #E5E7EB;
+  border: 2px solid #e5e7eb;
   background: white;
   border-radius: 8px;
   font-size: 0.875rem;
@@ -755,13 +757,13 @@ function controlPump(device) {
 }
 
 .btn-page-num:hover {
-  border-color: #F59E0B;
+  border-color: #f59e0b;
   background: #ffeed2;
 }
 
 .btn-page-num.active {
   background: linear-gradient(135deg, #ffeed2);
-  border-color: #F59E0B;
+  border-color: #f59e0b;
   color: #374151;
 }
 
@@ -770,12 +772,12 @@ function controlPump(device) {
   align-items: center;
   gap: 0.5rem;
   font-size: 0.875rem;
-  color: #6B7280;
+  color: #6b7280;
 }
 
 .rows-per-page select {
   padding: 0.5rem;
-  border: 2px solid #E5E7EB;
+  border: 2px solid #e5e7eb;
   border-radius: 8px;
   background: white;
   color: #374151;
@@ -815,7 +817,7 @@ function controlPump(device) {
 .modal-header h3 {
   font-size: 1.25rem;
   font-weight: 700;
-  color: #1F2937;
+  color: #1f2937;
   margin: 0;
 }
 
@@ -823,7 +825,7 @@ function controlPump(device) {
   width: 32px;
   height: 32px;
   border: none;
-  background: #F3F4F6;
+  background: #f3f4f6;
   border-radius: 8px;
   font-size: 1.25rem;
   cursor: pointer;
@@ -834,7 +836,7 @@ function controlPump(device) {
 }
 
 .btn-close:hover {
-  background: #EF4444;
+  background: #ef4444;
   color: white;
 }
 
@@ -849,18 +851,18 @@ function controlPump(device) {
   justify-content: space-between;
   align-items: center;
   padding: 0.75rem;
-  background: #F9FAFB;
+  background: #f9fafb;
   border-radius: 8px;
 }
 
 .detail-label {
   font-weight: 600;
-  color: #6B7280;
+  color: #6b7280;
   font-size: 0.875rem;
 }
 
 .detail-value {
-  color: #1F2937;
+  color: #1f2937;
   font-weight: 500;
   font-size: 0.875rem;
 }
@@ -870,41 +872,41 @@ function controlPump(device) {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .header-actions {
     flex-direction: column;
     width: 100%;
   }
-  
+
   .search-box {
     width: 100%;
   }
-  
+
   .search-box input {
     width: 100%;
   }
-  
+
   .filter-select {
     width: 100%;
   }
-  
+
   .pagination {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .pagination-controls {
     justify-content: center;
   }
-  
+
   .rows-per-page {
     justify-content: center;
   }
-  
+
   .action-buttons {
     flex-direction: column;
   }
-  
+
   .btn-action {
     width: 100%;
   }
