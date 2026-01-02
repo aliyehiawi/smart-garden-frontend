@@ -8,12 +8,26 @@
 
     <!-- Navigation Items -->
     <nav class="sidebar-nav">
-      <!-- Dashboard -->
-      <div class="nav-item active">
-        <img :src="home" alt="dashboard" class="nav-icon" />
-        <span class="nav-text" v-if="isExpanded">Dashboard</span>
-      </div>
-    </nav>
+    <!-- Dashboard -->
+   <router-link to="/" class="nav-item" active-class="active-route">
+    <img :src="home" alt="dashboard" class="nav-icon" />
+    <span class="nav-text" v-if="isExpanded">Dashboard</span>
+   </router-link>
+
+   <!-- Device Management -->
+   <template v-if="authStore.isAdmin">
+    <router-link to="/device-management" class="nav-item" active-class="active-route">
+      <img :src="device" alt="device-management" class="nav-icon" />
+      <span class="nav-text" v-if="isExpanded">Device Management</span>
+    </router-link>
+
+    <!-- User Management -->
+    <router-link to="/user-management" class="nav-item" active-class="active-route">
+      <img :src="user" alt="user-management" class="nav-icon" />
+      <span class="nav-text" v-if="isExpanded">User Management</span>
+    </router-link>
+  </template>
+</nav>
 
     <!-- Footer Section -->
     <div class="sidebar-footer">
@@ -42,6 +56,8 @@ import { useAuthStore } from '@/stores/auth'
 // Import icons
 import home from '@/assets/home.png'
 import logout from '@/assets/logout.png'
+import device from '@/assets/device.png'  
+import user from '@/assets/user.png'      
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -169,6 +185,24 @@ async function handleLogout() {
   border-color: #16A34A;
   color: #16A34A;
   transform: translateX(-2px);
+}
+
+.nav-item.active-route {
+  background: linear-gradient(135deg, #10B981, #059669);
+  color: white;
+  border-color: #10B981;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+.nav-icon {
+  width: 30px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+  object-fit: contain;
 }
 
 .info-item {

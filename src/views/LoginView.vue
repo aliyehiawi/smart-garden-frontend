@@ -103,7 +103,7 @@ onMounted(() => {
 async function checkBackendConnection() {
   try {
     // Use correct actuator endpoint from backend
-    const response = await fetch(`${apiBaseUrl.value.replace('/api', '')}/actuator/health`)
+    const response = await fetch(`${apiBaseUrl.value}/actuator/health`)
     if (response.ok) {
       debugInfo.value = 'Backend is running'
       console.log('Backend connection OK')

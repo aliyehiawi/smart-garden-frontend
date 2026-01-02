@@ -19,8 +19,20 @@ const router = createRouter({
     {
       path: '/devices/:id',
       name: 'device-details',
-      component: () => import('@/views/DashboardView.vue'), // create a separate DeviceDetailView
+      component: () => import('@/views/DashboardView.vue'), 
       meta: { requiresAuth: true, title: 'Device Details' },
+    },
+    {
+      path: '/user-management',
+      name: 'user-management',
+      component: () => import('@/views/UserManagementView.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true, title: 'User Management' },
+    },
+    {
+      path: '/device-management',
+      name: 'device-management',
+      component: () => import('@/views/DeviceManagementView.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true, title: 'Device Management' },
     },
     {
       path: '/:pathMatch(.*)*',
@@ -43,6 +55,10 @@ router.beforeEach((to, from, next) => {
     next({ name: 'login', query: { redirect: to.fullPath } });
   } else if (to.name === 'login' && authStore.isAuthenticated) {
     // Redirect to dashboard if user is already authenticated and tries to access login
+    next({ name: 'dashboard' });
+  } else if (to.meta.requiresAdmin && !authStore.isAdmin) {
+    // Redirect to dashboard if not admin
+    console.warn('Access denied: Admin only');
     next({ name: 'dashboard' });
   } else {
     next();

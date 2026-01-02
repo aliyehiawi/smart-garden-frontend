@@ -81,23 +81,6 @@
 
       <!-- Devices List - Row 4 -->
       <DeviceList v-if="authStore.user" @pump-control-selected="handlePumpControlSelected" />
-
-      <!-- ADMIN ONLY SECTIONS - Row 5 -->
-      <template v-if="authStore.isAdmin">
-        <div class="row-5-grid">
-          <!-- Manual Pump Control -->
-          <ManualPumpControl :device-id="selectedDeviceId" />
-
-          <!-- Threshold Control -->
-          <ThresholdControl :device-id="selectedDeviceId" />
-        </div>
-
-        <!-- Device Registration - Row 6 -->
-        <DeviceRegistration @device-registered="handleDeviceRegistered" />
-
-        <!-- User Registration - Row 7 -->
-        <UserRegistration />
-      </template>
     </div>
   </MainLayout>
 </template>
@@ -119,10 +102,6 @@ import LiveSensorDataCard from '@/components/LiveSensorDataCard.vue'
 import WaterLevelHistoryChart from '@/components/WaterLevelHistoryChart.vue'
 import WaterLevelTable from '@/components/WaterLevelTable.vue'
 import DeviceList from '@/components/DeviceList.vue'
-import ManualPumpControl from '@/components/ManualPumpControl.vue'
-import ThresholdControl from '@/components/ThresholdControl.vue'
-import DeviceRegistration from '@/components/DeviceRegistration.vue'
-import UserRegistration from '@/components/UserRegistration.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
