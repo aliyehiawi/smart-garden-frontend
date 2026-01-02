@@ -42,8 +42,8 @@
           {{ isLoading ? 'Logging in...' : 'Login' }}
         </button>
 
-        <!-- Debug Info -->
-        <div v-if="debugInfo" class="debug-info">
+        <!-- Debug Info 
+        <div v-if="debugInfo && isDevelopment" class="debug-info">
           <p><strong>Debug Info:</strong></p>
           <p>API URL: {{ apiBaseUrl }}</p>
           <p>Status: {{ debugInfo }}</p>
@@ -51,15 +51,18 @@
 
         <p v-if="successMessage" class="success-message">{{ successMessage }}</p>
         <p v-if="error" class="error-message">{{ error }}</p>
+        -->
       </form>
+       
 
-      <!-- Demo Credentials -->
+      <!-- Demo Credentials 
       <div class="demo-credentials">
         <small>Demo: <strong>admin/admin123</strong> or <strong>user/user</strong></small>
       </div>
       <p class="demo-note">
         💡 Admins can register new users from the Dashboard
       </p>
+      -->
     </div>
   </div>
 </template>
@@ -78,6 +81,8 @@ const successMessage = ref('')
 const rememberMe = ref(false)
 const debugInfo = ref('')
 const apiBaseUrl = ref(import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api')
+const isDevelopment = ref(false)
+
 
 const loginForm = ref({
   username: '',
@@ -176,8 +181,9 @@ async function handleLogin() {
   justify-content: center;
   align-items: center;
   background: linear-gradient(135deg, #10B981 0%, #059669 100%);
-  padding: 20px;
+  padding: 40px 20px;
   overflow-y: auto;
+  min-height: 100vh;
 }
 
 .login-card {
@@ -187,6 +193,7 @@ async function handleLogin() {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   width: 100%;
   max-width: 450px;
+  margin: auto;
 }
 
 .login-brand {
@@ -337,8 +344,20 @@ async function handleLogin() {
 }
 
 @media (max-width: 600px) {
+  .login-container {
+    padding: 20px 15px;
+  }
+  
   .login-card {
     padding: 2rem 1.5rem;
+  }
+  
+  .brand-icon {
+    font-size: 3rem;
+  }
+  
+  .login-brand h1 {
+    font-size: 1.5rem;
   }
 }
 

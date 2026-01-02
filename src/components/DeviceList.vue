@@ -80,8 +80,8 @@
             <td class="device-id-cell">
               <code class="device-id">{{ device.deviceId }}</code>
             </td>
-            <td class="threshold-cell">{{ device.minThreshold }}%</td>
-            <td class="threshold-cell">{{ device.maxThreshold }}%</td>
+            <td class="threshold-cell">{{ device.minThreshold }} cm</td>
+            <td class="threshold-cell">{{ device.maxThreshold }} cm</td>
             <td class="timestamp-cell">{{ formatTimestamp(device.lastUpdate) }}</td>
             <td class="actions-cell">
               <div class="action-buttons">
@@ -94,13 +94,6 @@
                   {{ selectedDeviceId === device.id ? 'Selected' : 'Control' }}
                 </button>
 
-                <button
-                  @click="viewDevice(device)"
-                  class="btn-action btn-view"
-                  title="View Details"
-                >
-                  View
-                </button>
                 <button
                   v-if="authStore.isAdmin"
                   @click="deleteDevice(device)"
@@ -151,41 +144,6 @@
         </select>
       </div>
     </div>
-
-    <div v-if="showModal" class="modal-overlay" @click="closeModal">
-      <div class="modal-content" @click.stop>
-        <div class="modal-header">
-          <h3>Device Details</h3>
-          <button @click="closeModal" class="btn-close">✕</button>
-        </div>
-        <div class="modal-body">
-          <div class="detail-row">
-            <span class="detail-label">Device Name:</span>
-            <span class="detail-value">{{ selectedDevice?.name }}</span>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">Device ID:</span>
-            <code class="detail-value">{{ selectedDevice?.deviceId }}</code>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">Min Threshold:</span>
-            <span class="detail-value">{{ selectedDevice?.minThreshold }}%</span>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">Max Threshold:</span>
-            <span class="detail-value">{{ selectedDevice?.maxThreshold }}%</span>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">Last Update:</span>
-            <span class="detail-value">{{ formatTimestamp(selectedDevice?.lastUpdate) }}</span>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">Registration Date:</span>
-            <span class="detail-value">{{ formatTimestamp(selectedDevice?.registeredAt) }}</span>
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -212,7 +170,6 @@ const sortColumn = ref('name')
 const sortDirection = ref('asc')
 const currentPage = ref(1)
 const rowsPerPage = ref(20)
-const showModal = ref(false)
 const selectedDevice = ref(null)
 const selectedDeviceId = ref(null)
 
@@ -367,16 +324,6 @@ function formatTimestamp(timestamp) {
     hour: '2-digit',
     minute: '2-digit',
   })
-}
-
-function viewDevice(device) {
-  selectedDevice.value = device
-  showModal.value = true
-}
-
-function closeModal() {
-  showModal.value = false
-  selectedDevice.value = null
 }
 
 async function deleteDevice(device) {
@@ -647,16 +594,6 @@ function controlPump(device) {
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
 }
 
-.btn-view {
-  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-  color: white;
-}
-
-.btn-view:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
-}
-
 .btn-delete {
   background: linear-gradient(135deg, #ef4444, #dc2626);
   color: white;
@@ -784,88 +721,6 @@ function controlPump(device) {
   cursor: pointer;
 }
 
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 1rem;
-}
-
-.modal-content {
-  background: white;
-  border-radius: 16px;
-  padding: 1.5rem;
-  max-width: 500px;
-  width: 100%;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-}
-
-.modal-header h3 {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #1f2937;
-  margin: 0;
-}
-
-.btn-close {
-  width: 32px;
-  height: 32px;
-  border: none;
-  background: #f3f4f6;
-  border-radius: 8px;
-  font-size: 1.25rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.btn-close:hover {
-  background: #ef4444;
-  color: white;
-}
-
-.modal-body {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.detail-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem;
-  background: #f9fafb;
-  border-radius: 8px;
-}
-
-.detail-label {
-  font-weight: 600;
-  color: #6b7280;
-  font-size: 0.875rem;
-}
-
-.detail-value {
-  color: #1f2937;
-  font-weight: 500;
-  font-size: 0.875rem;
-}
 
 @media (max-width: 768px) {
   .card-header {

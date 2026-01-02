@@ -23,11 +23,11 @@ import UserRegistration from '@/components/UserRegistration.vue'
 <style scoped>
 .page-container {
   width: 100%;
-  padding: 2rem 3rem;
+  padding: 0; 
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  min-height: 100vh;
+  min-height: calc(100vh - 4rem); 
 }
 
 .page-header {

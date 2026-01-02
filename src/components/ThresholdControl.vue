@@ -3,11 +3,11 @@
     <div class="card-header">
       <div class="title-section">
         <h3>Threshold Control</h3>
-        <p class="subtitle">Configure water level boundaries</p>
+        <p class="subtitle">Configure water level boundaries for automatic pump control</p>
       </div>
 
       <!-- Current Status Badge -->
-      <div v-if="currentDeviceId" class="status-badge" :class="statusClass">
+      <div v-if="currentDeviceId && hasData" class="status-badge" :class="statusClass">
         {{ currentStatus }}
       </div>
     </div>
@@ -16,29 +16,77 @@
     <div v-if="!currentDeviceId" class="no-device-warning">
       <span class="warning-icon">⚠️</span>
       <div class="warning-content">
-        <p>Please select a device from the device list to configure thresholds.</p>
+        <p>Please select a device from the device list to configure thresholds</p>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div v-else-if="loading" class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading threshold data...</p>
+    </div>
+
+    <!-- No Data Available -->
+    <div v-else-if="!hasData" class="no-data-warning">
+      <span class="warning-icon">📊</span>
+      <div class="warning-content">
+        <p>No threshold data available for this device. Please configure thresholds below.</p>
       </div>
     </div>
 
     <template v-else>
+      <!-- Current Reading and Pump Status -->
+      <div class="current-status-panel">
+        <div class="status-row">
+          <div class="status-item">
+            <span class="status-label">Current Distance Reading</span>
+            <span class="status-value" :class="getReadingClass">
+              {{ currentWaterLevel !== null ? currentWaterLevel.toFixed(1) : 'N/A' }} cm
+            </span>
+          </div>
+          <div class="status-item">
+            <span class="status-label">Pump Status</span>
+            <span class="pump-status" :class="pumpStatusClass">
+              <span class="status-dot"></span>
+              {{ pumpStatusText }}
+            </span>
+          </div>
+        </div>
+        
+        <!-- Pump Control Logic Explanation -->
+        <div v-if="currentWaterLevel !== null" class="logic-explanation">
+          <div class="logic-icon">💡</div>
+          <div class="logic-content">
+            <strong>Automatic Pump Control Logic:</strong>
+            <ul>
+              <li><strong>Pump Starts:</strong> When distance ≥ {{ currentMax }} cm (tank is getting empty)</li>
+              <li><strong>Pump Stops:</strong> When distance ≤ {{ currentMin }} cm (tank is nearly full)</li>
+              <li><strong>Current Reading:</strong> {{ currentWaterLevel.toFixed(1) }} cm → {{ getPumpAction }}</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
       <!-- Current Thresholds Display -->
       <div class="current-thresholds">
         <div class="threshold-display">
           <div class="threshold-label">
-            <span class="icon">📉</span>
-            <span>Current Minimum</span>
+            <span class="icon">🔽</span>
+            <span>Minimum Threshold (Stop Pump)</span>
           </div>
-          <div class="threshold-value min">{{ currentMin }}%</div>
+          <div class="threshold-value min">{{ currentMin }} cm</div>
+          <div class="threshold-description">Tank is nearly full - Pump will STOP</div>
         </div>
 
-        <div class="threshold-divider">→</div>
+        <div class="threshold-divider">↔</div>
 
         <div class="threshold-display">
           <div class="threshold-label">
-            <span class="icon">📈</span>
-            <span>Current Maximum</span>
+            <span class="icon">🔼</span>
+            <span>Maximum Threshold (Start Pump)</span>
           </div>
-          <div class="threshold-value max">{{ currentMax }}%</div>
+          <div class="threshold-value max">{{ currentMax }} cm</div>
+          <div class="threshold-description">Tank is getting empty - Pump will START</div>
         </div>
       </div>
 
@@ -46,8 +94,8 @@
       <form @submit.prevent="submitThresholds" class="threshold-form">
         <div class="form-group">
           <label for="minThreshold" class="form-label">
-            <span>Minimum Threshold (%)</span>
-            <span class="label-hint">Pump starts when water drops below this</span>
+            <span>Minimum Threshold (cm) - Stop Pump Distance</span>
+            <span class="label-hint">Pump STOPS when distance reading ≤ this value (tank nearly full)</span>
           </label>
           <div class="input-wrapper">
             <input
@@ -55,20 +103,20 @@
               v-model.number="lowerThreshold"
               type="number"
               min="0"
-              max="100"
-              step="1"
+              max="200"
+              step="0.1"
               required
               class="form-input"
               :class="{ 'input-error': validationError }"
             />
-            <span class="input-unit">%</span>
+            <span class="input-unit">cm</span>
           </div>
         </div>
 
         <div class="form-group">
           <label for="maxThreshold" class="form-label">
-            <span>Maximum Threshold (%)</span>
-            <span class="label-hint">Pump stops when water reaches this level</span>
+            <span>Maximum Threshold (cm) - Start Pump Distance</span>
+            <span class="label-hint">Pump STARTS when distance reading ≥ this value (tank getting empty)</span>
           </label>
           <div class="input-wrapper">
             <input
@@ -76,13 +124,13 @@
               v-model.number="upperThreshold"
               type="number"
               min="0"
-              max="100"
-              step="1"
+              max="200"
+              step="0.1"
               required
               class="form-input"
               :class="{ 'input-error': validationError }"
             />
-            <span class="input-unit">%</span>
+            <span class="input-unit">cm</span>
           </div>
         </div>
 
@@ -110,12 +158,14 @@
         </div>
       </transition>
 
-      <!-- Info Panel -->
+      <!-- Info Panel with Example -->
       <div class="info-panel">
-        <span class="info-icon">💡</span>
+        <span class="info-icon">📊</span>
         <div class="info-content">
-          <strong>Tip:</strong> Maintain at least 20% difference between min and max thresholds for
-          optimal pump operation.
+          <strong>Example Scenario:</strong>
+          <p>If Max Threshold = {{ currentMax }} cm and Current Reading = {{ (currentMax - 1.2).toFixed(1) }} cm:</p>
+          <p>Since {{ (currentMax - 1.2).toFixed(1) }} cm &lt; {{ currentMax }} cm → Tank is NOT empty enough → Pump will NOT start</p>
+          <p>If Current Reading = {{ (currentMax + 1.5).toFixed(1) }} cm → Since {{ (currentMax + 1.5).toFixed(1) }} cm ≥ {{ currentMax }} cm → Tank is empty enough → Pump CAN START</p>
         </div>
       </div>
     </template>
@@ -127,16 +177,18 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useSensorsStore } from '@/stores/sensors'
 import { useThresholdsStore } from '@/stores/thresholds'
+import { useDevicesStore } from '@/stores/devices'
 import { thresholdAPI } from '@/utils/api'
 
 const sensorsStore = useSensorsStore()
 const thresholdsStore = useThresholdsStore()
+const devicesStore = useDevicesStore()
 
 const { latestReadings } = storeToRefs(sensorsStore)
 const { thresholds } = storeToRefs(thresholdsStore)
 
-const lowerThreshold = ref(20)
-const upperThreshold = ref(80)
+const lowerThreshold = ref(null)
+const upperThreshold = ref(null)
 const loading = ref(false)
 const feedbackMessage = ref('')
 const feedbackType = ref('success')
@@ -150,51 +202,119 @@ const props = defineProps({
 
 const currentDeviceId = computed(() => props.deviceId)
 
-// Get thresholds from thresholdsStore correctly
 const currentThresholds = computed(() => {
   if (!currentDeviceId.value) return null
   return thresholds.value[currentDeviceId.value] || null
 })
 
-const currentMin = computed(
-  () => currentThresholds.value?.minThreshold || currentThresholds.value?.lowerThreshold || 20,
-)
-const currentMax = computed(
-  () => currentThresholds.value?.maxThreshold || currentThresholds.value?.upperThreshold || 80,
-)
+const hasData = computed(() => {
+  return currentThresholds.value !== null && 
+         currentThresholds.value !== undefined &&
+         (currentThresholds.value.minThreshold !== undefined || 
+          currentThresholds.value.lowerThreshold !== undefined)
+})
+
+const currentMin = computed(() => {
+  if (!currentThresholds.value) return null
+  return currentThresholds.value.minThreshold ?? currentThresholds.value.lowerThreshold ?? null
+})
+
+const currentMax = computed(() => {
+  if (!currentThresholds.value) return null
+  return currentThresholds.value.maxThreshold ?? currentThresholds.value.upperThreshold ?? null
+})
 
 const currentWaterLevel = computed(() => {
-  if (!currentDeviceId.value) return 0
+  if (!currentDeviceId.value) return null
   const reading = latestReadings.value[currentDeviceId.value]
-  return reading?.waterLevel || 0
+  return reading?.waterLevel ?? null
+})
+
+const currentPumpStatus = computed(() => {
+  if (!currentDeviceId.value) return null
+  return devicesStore.getPumpStatus(currentDeviceId.value)
 })
 
 const currentStatus = computed(() => {
+  if (currentWaterLevel.value === null || currentMin.value === null || currentMax.value === null) {
+    return 'No Data Available'
+  }
+  
   const level = currentWaterLevel.value
-  if (level < currentMin.value) return 'Below Minimum'
-  if (level > currentMax.value) return 'Above Maximum'
-  return 'Within Range'
+  
+  if (level >= currentMax.value) return 'Tank Getting Empty - Pump Should Start'
+  if (level <= currentMin.value) return 'Tank Nearly Full - Pump Should Stop'
+  return 'Normal Range - No Action Needed'
 })
 
 const statusClass = computed(() => {
+  if (currentWaterLevel.value === null || currentMin.value === null || currentMax.value === null) {
+    return 'status-unknown'
+  }
+  
   const level = currentWaterLevel.value
-  if (level < currentMin.value) return 'status-low'
-  if (level > currentMax.value) return 'status-high'
+  
+  if (level >= currentMax.value) return 'status-high'
+  if (level <= currentMin.value) return 'status-low'
   return 'status-normal'
 })
 
-const validationError = computed(() => {
-  if (lowerThreshold.value < 0 || lowerThreshold.value > 100) {
-    return 'Minimum threshold must be between 0 and 100'
+const getReadingClass = computed(() => {
+  if (currentWaterLevel.value === null || currentMin.value === null || currentMax.value === null) {
+    return 'reading-unknown'
   }
-  if (upperThreshold.value < 0 || upperThreshold.value > 100) {
-    return 'Maximum threshold must be between 0 and 100'
+  
+  const level = currentWaterLevel.value
+  
+  if (level >= currentMax.value) return 'reading-critical'
+  if (level <= currentMin.value) return 'reading-good'
+  return 'reading-normal'
+})
+
+const pumpStatusText = computed(() => {
+  if (!currentPumpStatus.value) return 'Unknown'
+  return currentPumpStatus.value.isRunning ? 'RUNNING' : 'STOPPED'
+})
+
+const pumpStatusClass = computed(() => {
+  if (!currentPumpStatus.value) return 'pump-unknown'
+  return currentPumpStatus.value.isRunning ? 'pump-running' : 'pump-stopped'
+})
+
+const getPumpAction = computed(() => {
+  if (currentWaterLevel.value === null || currentMin.value === null || currentMax.value === null) {
+    return 'Waiting for data...'
+  }
+  
+  const level = currentWaterLevel.value
+  
+  if (level >= currentMax.value) {
+    return 'Pump SHOULD START (distance ≥ max threshold)'
+  }
+  
+  if (level <= currentMin.value) {
+    return 'Pump SHOULD STOP (distance ≤ min threshold)'
+  }
+  
+  return 'No action needed (within normal range)'
+})
+
+const validationError = computed(() => {
+  if (lowerThreshold.value === null || upperThreshold.value === null) {
+    return 'Please enter both threshold values'
+  }
+  
+  if (lowerThreshold.value < 0 || lowerThreshold.value > 200) {
+    return 'Minimum threshold must be between 0 and 200 cm'
+  }
+  if (upperThreshold.value < 0 || upperThreshold.value > 200) {
+    return 'Maximum threshold must be between 0 and 200 cm'
   }
   if (lowerThreshold.value >= upperThreshold.value) {
-    return 'Minimum threshold must be less than maximum threshold'
+    return 'Minimum threshold must be LESS than maximum threshold'
   }
-  if (upperThreshold.value - lowerThreshold.value < 10) {
-    return 'Thresholds should have at least 10% difference'
+  if (upperThreshold.value - lowerThreshold.value < 5) {
+    return 'Thresholds should have at least 5 cm difference'
   }
   return null
 })
@@ -216,47 +336,56 @@ onMounted(async () => {
 watch(currentDeviceId, async (newDeviceId) => {
   console.log('🔄 Device ID changed in ThresholdControl:', newDeviceId)
   if (newDeviceId) {
+    // Reset values
+    lowerThreshold.value = null
+    upperThreshold.value = null
     await loadThresholds()
   }
 })
 
-watch([currentMin, currentMax], () => {
-  lowerThreshold.value = currentMin.value
-  upperThreshold.value = currentMax.value
+watch([currentMin, currentMax], ([newMin, newMax]) => {
+  if (newMin !== null) lowerThreshold.value = newMin
+  if (newMax !== null) upperThreshold.value = newMax
 })
 
 async function loadThresholds() {
   if (!currentDeviceId.value) {
-    console.warn('Cannot load thresholds: No device selected')
+    console.warn('⚠️ Cannot load thresholds: No device selected')
     return
   }
 
+  loading.value = true
   console.log('Loading thresholds for device:', currentDeviceId.value)
 
   try {
-    // Use thresholdAPI.get() instead of thresholdAPI.getByDevice()
-    const response = await thresholdAPI.get(currentDeviceId.value)
+    const response = await thresholdAPI.getByDevice(currentDeviceId.value)
 
     if (response) {
-      // Backend returns: { minThreshold, maxThreshold }
-      lowerThreshold.value = response.minThreshold || response.lowerThreshold || 20
-      upperThreshold.value = response.maxThreshold || response.upperThreshold || 80
+      const minValue = response.minThreshold ?? response.lowerThreshold
+      const maxValue = response.maxThreshold ?? response.upperThreshold
+      
+      lowerThreshold.value = minValue
+      upperThreshold.value = maxValue
 
-      // Update store with consistent naming
       thresholdsStore.setThresholds(currentDeviceId.value, {
-        minThreshold: lowerThreshold.value,
-        maxThreshold: upperThreshold.value,
-        lowerThreshold: lowerThreshold.value,
-        upperThreshold: upperThreshold.value,
+        minThreshold: minValue,
+        maxThreshold: maxValue,
+        lowerThreshold: minValue,
+        upperThreshold: maxValue,
       })
 
-      console.log('Thresholds loaded successfully')
+      console.log('Thresholds loaded:', { min: minValue, max: maxValue })
     }
   } catch (error) {
     console.error('Failed to load thresholds:', error)
-    // Use defaults on error
-    lowerThreshold.value = 20
-    upperThreshold.value = 80
+    feedbackMessage.value = 'Failed to load thresholds. Please enter values manually.'
+    feedbackType.value = 'error'
+    
+    setTimeout(() => {
+      feedbackMessage.value = ''
+    }, 5000)
+  } finally {
+    loading.value = false
   }
 }
 
@@ -272,16 +401,17 @@ async function submitThresholds() {
   loading.value = true
   feedbackMessage.value = ''
 
-  console.log('Saving thresholds for device:', currentDeviceId.value)
+  console.log('Saving thresholds for device:', currentDeviceId.value, {
+    min: lowerThreshold.value,
+    max: upperThreshold.value
+  })
 
   try {
-    // Backend expects: { minThreshold, maxThreshold }
     const response = await thresholdAPI.update(currentDeviceId.value, {
       minThreshold: lowerThreshold.value,
       maxThreshold: upperThreshold.value,
     })
 
-    // Update store with response
     thresholdsStore.setThresholds(currentDeviceId.value, {
       minThreshold: response.minThreshold,
       maxThreshold: response.maxThreshold,
@@ -290,10 +420,10 @@ async function submitThresholds() {
     })
 
     feedbackMessage.value =
-      'Thresholds updated successfully. Hardware will receive new settings via MQTT.'
+      'Thresholds updated successfully. Automatic pump control will use these new values via MQTT.'
     feedbackType.value = 'success'
 
-    console.log('Thresholds saved successfully')
+    console.log('Thresholds saved successfully:', response)
 
     setTimeout(() => {
       feedbackMessage.value = ''
@@ -303,7 +433,7 @@ async function submitThresholds() {
     feedbackMessage.value =
       error.response?.data?.message ||
       error.message ||
-      'Failed to update thresholds. Please try again.'
+      'Failed to update thresholds, Please try again!'
     feedbackType.value = 'error'
 
     setTimeout(() => {
@@ -316,6 +446,7 @@ async function submitThresholds() {
 </script>
 
 <style scoped>
+/* Keep all existing styles exactly the same */
 .control-card {
   background: white;
   border-radius: 16px;
@@ -363,10 +494,12 @@ async function submitThresholds() {
 .status-badge {
   padding: 0.5rem 1rem;
   border-radius: 8px;
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  text-align: center;
+  max-width: 300px;
 }
 
 .status-normal {
@@ -375,8 +508,8 @@ async function submitThresholds() {
 }
 
 .status-low {
-  background: #fef3c7;
-  color: #92400e;
+  background: #dbeafe;
+  color: #1e40af;
 }
 
 .status-high {
@@ -384,7 +517,13 @@ async function submitThresholds() {
   color: #991b1b;
 }
 
-.no-device-warning {
+.status-unknown {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.no-device-warning,
+.no-data-warning {
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -395,7 +534,7 @@ async function submitThresholds() {
 }
 
 .warning-icon {
-  font-size: 1.5rem;
+  font-size: 2rem;
   flex-shrink: 0;
 }
 
@@ -410,9 +549,172 @@ async function submitThresholds() {
   line-height: 1.5;
 }
 
-.current-thresholds {
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 2rem;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #e5e7eb;
+  border-top-color: #10b981;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.current-status-panel {
+  background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+  border: 2px solid #3b82f6;
+  border-radius: 12px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.status-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.status-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.status-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1e40af;
+}
+
+.status-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  padding: 0.5rem;
+  border-radius: 8px;
+  background: white;
+  text-align: center;
+}
+
+.reading-critical {
+  color: #dc2626;
+  border: 2px solid #fecaca;
+}
+
+.reading-good {
+  color: #059669;
+  border: 2px solid #a7f3d0;
+}
+
+.reading-normal {
+  color: #3b82f6;
+  border: 2px solid #bfdbfe;
+}
+
+.reading-unknown {
+  color: #6b7280;
+  border: 2px solid #e5e7eb;
+}
+
+.pump-status {
   display: flex;
   align-items: center;
+  gap: 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  background: white;
+}
+
+.status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.pump-running .status-dot {
+  background: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+}
+
+.pump-stopped .status-dot {
+  background: #6b7280;
+}
+
+.pump-unknown .status-dot {
+  background: #d1d5db;
+}
+
+.pump-running {
+  color: #059669;
+}
+
+.pump-stopped {
+  color: #6b7280;
+}
+
+.pump-unknown {
+  color: #9ca3af;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.logic-explanation {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  background: white;
+  border-radius: 8px;
+  border: 2px dashed #3b82f6;
+}
+
+.logic-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.logic-content {
+  flex: 1;
+}
+
+.logic-content strong {
+  display: block;
+  color: #1e40af;
+  margin-bottom: 0.5rem;
+}
+
+.logic-content ul {
+  margin: 0;
+  padding-left: 1.25rem;
+  list-style-type: disc;
+}
+
+.logic-content li {
+  color: #1e40af;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  margin-bottom: 0.25rem;
+}
+
+.current-thresholds {
+  display: flex;
+  align-items: stretch;
   justify-content: space-between;
   gap: 1rem;
   padding: 1.5rem;
@@ -426,6 +728,9 @@ async function submitThresholds() {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  padding: 1rem;
+  background: white;
+  border-radius: 8px;
 }
 
 .threshold-label {
@@ -434,7 +739,7 @@ async function submitThresholds() {
   gap: 0.5rem;
   font-size: 0.875rem;
   color: #6b7280;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .threshold-label .icon {
@@ -444,20 +749,31 @@ async function submitThresholds() {
 .threshold-value {
   font-size: 2rem;
   font-weight: 700;
+  text-align: center;
 }
 
 .threshold-value.min {
-  color: #f59e0b;
+  color: #3b82f6;
 }
 
 .threshold-value.max {
   color: #ef4444;
 }
 
+.threshold-description {
+  font-size: 0.75rem;
+  color: #6b7280;
+  text-align: center;
+  font-weight: 500;
+  margin-top: 0.25rem;
+}
+
 .threshold-divider {
   font-size: 1.5rem;
   color: #d1d5db;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
 }
 
 .threshold-form {
@@ -578,13 +894,11 @@ async function submitThresholds() {
 .feedback-message.success {
   background: #d1fae5;
   border: 2px solid #10b981;
-  color: #065f46;
 }
 
 .feedback-message.error {
   background: #fee2e2;
   border: 2px solid #ef4444;
-  color: #991b1b;
 }
 
 .feedback-icon {
@@ -601,27 +915,32 @@ async function submitThresholds() {
 .info-panel {
   display: flex;
   gap: 1rem;
-  padding: 1rem;
-  background: #eff6ff;
-  border: 2px solid #3b82f6;
+  padding: 1.5rem;
+  background: #fffbeb;
+  border: 2px solid #f59e0b;
   border-radius: 10px;
 }
 
 .info-icon {
-  font-size: 1.25rem;
+  font-size: 1.5rem;
   flex-shrink: 0;
 }
 
 .info-content {
-  font-size: 0.8125rem;
-  color: #1e40af;
-  line-height: 1.4;
+  font-size: 0.875rem;
+  color: #92400e;
+  line-height: 1.6;
 }
 
 .info-content strong {
-  font-weight: 600;
+  font-weight: 700;
   display: block;
-  margin-bottom: 0.125rem;
+  margin-bottom: 0.5rem;
+  color: #78350f;
+}
+
+.info-content p {
+  margin: 0.25rem 0;
 }
 
 .fade-enter-active,
