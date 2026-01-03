@@ -10,14 +10,31 @@
       </div>
 
       <!-- User Registration Card -->
-      <UserRegistration />
+      <UserRegistration @user-registered="handleUserRegistered" />
+
+    <!-- User List -->
+      <UserList ref="userListRef" class="user-list-section" />
     </div>
   </MainLayout>
 </template>
 
 <script setup>
+import { ref } from 'vue'
 import MainLayout from '@/components/MainLayout.vue'
 import UserRegistration from '@/components/UserRegistration.vue'
+import UserList from '@/components/UserList.vue'
+
+const userListRef = ref(null)
+
+// Handle user registration completion
+function handleUserRegistered() {
+  console.log('New user registered, refreshing user list...')
+  
+  // Refresh the user list after successful registration
+  if (userListRef.value) {
+    userListRef.value.fetchUsers()
+  }
+}
 </script>
 
 <style scoped>
@@ -49,6 +66,10 @@ import UserRegistration from '@/components/UserRegistration.vue'
   color: #6B7280;
   margin: 0;
   font-size: 1rem;
+}
+
+.user-list-section {
+  margin-top: 1rem;
 }
 
 @media (max-width: 1024px) {

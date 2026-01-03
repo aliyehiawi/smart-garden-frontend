@@ -33,7 +33,6 @@ const props = defineProps({
   },
   deviceName: {
     type: String,
-    default: 'ESP32-001'
   },
   lastSeen: {
     type: String,

@@ -8,7 +8,7 @@
     </div>
     
     <div class="card-body">
-      <div class="main-value">{{ value }}%</div>
+      <div class="main-value">{{ value }}cm</div>
       <div class="status-badge" :class="`badge-${statusLevel}`">
         {{ statusText }}
       </div>
@@ -32,11 +32,9 @@ const props = defineProps({
   },
   min: {
     type: Number,
-    default: 20
   },
   max: {
     type: Number,
-    default: 80
   }
 })
 

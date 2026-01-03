@@ -11,12 +11,12 @@
       <div class="threshold-values">
         <div class="threshold-item">
           <span class="label">Min</span>
-          <span class="value">{{ min }}%</span>
+          <span class="value">{{ min }}cm</span>
         </div>
         <div class="threshold-divider">—</div>
         <div class="threshold-item">
           <span class="label">Max</span>
-          <span class="value">{{ max }}%</span>
+          <span class="value">{{ max }}cm</span>
         </div>
       </div>
       

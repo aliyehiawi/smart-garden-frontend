@@ -171,6 +171,7 @@ export const waterLevelAPI = {
   },
 }
 
+
 // USER MANAGEMENT ENDPOINTS (Admin Only)
 
 export const userAPI = {
@@ -186,8 +187,8 @@ export const userAPI = {
   /**
    * Create a new user (Admin only)
    * Creates user via /auth/register and optionally promotes to admin
-   * @param {Object} userData { username, email, password, role }
-   * @returns {Promise} { user, temporaryPassword }
+   * @param {Object} userData  (username, email, password, role)
+   * @returns {Promise}  (user, temporaryPassword)
    */
   createUser: async (userData) => {
     // Register the user first

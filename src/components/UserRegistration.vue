@@ -235,6 +235,8 @@
 import { ref, reactive } from 'vue'
 import { userAPI } from '@/utils/api'
 
+const emit = defineEmits(['user-registered'])
+
 const autoGeneratePassword = ref(true)
 const loading = ref(false)
 const showSuccess = ref(false)
@@ -371,7 +373,7 @@ async function registerUser() {
     const errorMessage =
       error.response?.data?.message ||
       error.response?.data ||
-      'Failed to create user. Please try again.'
+      'Failed to create user, Please try again'
     errors.username = errorMessage
   } finally {
     loading.value = false
@@ -423,6 +425,8 @@ function resetForm() {
     role: '',
     temporaryPassword: '',
   }
+
+  emit('user-registered')
 }
 </script>
 
