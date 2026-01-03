@@ -228,4 +228,28 @@ function confirmLogout() {
     padding: 1rem;
   }
 }
+
+.page-content-wrapper > * {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box;
+}
+
+.main-content {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.top-bar {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.page-content-wrapper .dashboard-container,
+.page-content-wrapper .page-container {
+  width: 100% !important;
+  max-width: none !important;
+  box-sizing: border-box;
+}
 </style>

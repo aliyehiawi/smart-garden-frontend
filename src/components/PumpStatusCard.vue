@@ -30,6 +30,18 @@
 
 <script setup>
 import { computed } from 'vue'
+import { watch } from 'vue'
+
+watch(() => props.isRunning, (newVal, oldVal) => {
+  if (newVal !== oldVal) {
+    console.log('Pump status changed:', oldVal, '→', newVal)
+    // Force re-render by updating a local reactive value
+  }
+}, { immediate: true })
+
+watch(() => props.runningTime, (newVal) => {
+  console.log('⏱️ Running time updated:', newVal)
+}, { immediate: true })
 
 const props = defineProps({
   isRunning: {

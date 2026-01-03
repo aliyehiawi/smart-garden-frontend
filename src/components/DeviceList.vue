@@ -173,11 +173,14 @@ const rowsPerPage = ref(20)
 const selectedDevice = ref(null)
 const selectedDeviceId = ref(null)
 
-// Properly map devices data with thresholds
 const devicesData = computed(() => {
   if (!Array.isArray(devices.value)) return []
   return devices.value.map((device) => {
     const deviceThresholds = thresholds.value[device.id]
+    
+    let minThresh = deviceThresholds?.minThreshold ?? deviceThresholds?.lowerThreshold ?? 0
+    let maxThresh = deviceThresholds?.maxThreshold ?? deviceThresholds?.upperThreshold ?? 0
+    
     return {
       id: device.id,
       name: device.name,
@@ -185,8 +188,8 @@ const devicesData = computed(() => {
       status: 'online',
       lastUpdate: device.updatedAt || new Date().toISOString(),
       registeredAt: device.createdAt || new Date().toISOString(),
-      minThreshold: deviceThresholds?.minThreshold || deviceThresholds?.lowerThreshold || 20,
-      maxThreshold: deviceThresholds?.maxThreshold || deviceThresholds?.upperThreshold || 80,
+      minThreshold: minThresh,  
+      maxThreshold: maxThresh,  
     }
   })
 })

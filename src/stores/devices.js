@@ -8,7 +8,7 @@ export const useDevicesStore = defineStore('devices', () => {
   const selectedDevice = ref(null)
   const loading = ref(false)
   const error = ref(null)
-  const pumpStatuses = ref({}) // Map of deviceId, pump status
+  const pumpStatuses = ref({}) 
 
   // Getters
   const deviceCount = computed(() => devices.value.length)
@@ -38,7 +38,7 @@ export const useDevicesStore = defineStore('devices', () => {
 
   /**
    * Register a new device (Admin only)
-   * @param {Object} deviceData - { name, location }
+   * @param {Object} deviceData   (name, location)
    */
   async function registerDevice(deviceData) {
     loading.value = true
@@ -177,8 +177,34 @@ export const useDevicesStore = defineStore('devices', () => {
    * @param {Object} status
    */
   function updatePumpStatus(deviceId, status) {
-    pumpStatuses.value[deviceId] = status
+  console.log('Updating pump status for device:', deviceId, 'Status:', status)
+  
+  // Get current status
+  const currentStatus = pumpStatuses.value[deviceId] || {}
+  const now = Date.now()
+  
+  // Check if this is a meaningful update
+  const statusChanged = currentStatus.isRunning !== status.isRunning
+  const isFreshUpdate = !currentStatus.lastUpdated || (now - currentStatus.lastUpdated) > 500
+  
+  if (statusChanged || isFreshUpdate) {
+    // Create new object to trigger reactivity
+    pumpStatuses.value = {
+      ...pumpStatuses.value,
+      [deviceId]: {
+        isRunning: status.isRunning,
+        manualControl: status.manualControl ?? currentStatus.manualControl,
+        lastStartedAt: status.lastStartedAt ?? currentStatus.lastStartedAt,
+        lastStoppedAt: status.lastStoppedAt ?? currentStatus.lastStoppedAt,
+        lastUpdated: now
+      }
+    }
+    
+    console.log('Pump status updated:', pumpStatuses.value[deviceId])
+  } else {
+    console.log('⏭Skipping redundant pump status update')
   }
+}
 
   // Clear all data
   function clearDevices() {

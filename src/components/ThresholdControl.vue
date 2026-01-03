@@ -230,20 +230,33 @@ const currentWaterLevel = computed(() => {
   return reading?.waterLevel ?? null
 })
 
-const currentPumpStatus = computed(() => {
-  if (!currentDeviceId.value) return null
-  return devicesStore.getPumpStatus(currentDeviceId.value)
-})
-
 const currentStatus = computed(() => {
   if (currentWaterLevel.value === null || currentMin.value === null || currentMax.value === null) {
     return 'No Data Available'
   }
   
-  const level = currentWaterLevel.value
+  const level = currentWaterLevel.value  
+  if (level >= currentMax.value) {
+    return 'CRITICAL - Tank Getting Empty (High Distance) - Pump MUST START'
+  }
   
-  if (level >= currentMax.value) return 'Tank Getting Empty - Pump Should Start'
-  if (level <= currentMin.value) return 'Tank Nearly Full - Pump Should Stop'
+  if (level <= currentMin.value) {
+    return 'Tank Nearly Full (Low Distance) - Pump MUST STOP'
+  }
+  
+  // Check if close to thresholds (within 10% range)
+  const range = currentMax.value - currentMin.value
+  const upperWarning = currentMax.value - (range * 0.1)
+  const lowerWarning = currentMin.value + (range * 0.1)
+  
+  if (level >= upperWarning) {
+    return 'WARNING - Tank Low (Approaching Empty) - Monitor Closely'
+  }
+  
+  if (level <= lowerWarning) {
+    return 'WARNING - Tank High (Approaching Full) - Monitor Closely'
+  }
+  
   return 'Normal Range - No Action Needed'
 })
 
@@ -253,10 +266,19 @@ const statusClass = computed(() => {
   }
   
   const level = currentWaterLevel.value
+  const range = currentMax.value - currentMin.value
+  const upperWarning = currentMax.value - (range * 0.1)
+  const lowerWarning = currentMin.value + (range * 0.1)
   
-  if (level >= currentMax.value) return 'status-high'
-  if (level <= currentMin.value) return 'status-low'
-  return 'status-normal'
+  // Critical states
+  if (level >= currentMax.value) return 'status-critical'  
+  if (level <= currentMin.value) return 'status-good'      
+  
+  // Warning states
+  if (level >= upperWarning) return 'status-warning'       
+  if (level <= lowerWarning) return 'status-warning'       
+  
+  return 'status-normal'  
 })
 
 const getReadingClass = computed(() => {
@@ -289,14 +311,14 @@ const getPumpAction = computed(() => {
   const level = currentWaterLevel.value
   
   if (level >= currentMax.value) {
-    return 'Pump SHOULD START (distance ≥ max threshold)'
+    return 'Pump SHOULD START'
   }
   
   if (level <= currentMin.value) {
-    return 'Pump SHOULD STOP (distance ≤ min threshold)'
+    return 'Pump SHOULD STOP'
   }
   
-  return 'No action needed (within normal range)'
+  return 'No action needed'
 })
 
 const validationError = computed(() => {
@@ -547,6 +569,29 @@ async function submitThresholds() {
   color: #92400e;
   font-size: 0.9375rem;
   line-height: 1.5;
+}
+
+.status-critical {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 2px solid #ef4444;
+  font-weight: 700;
+  animation: pulse-critical 2s ease-in-out infinite;
+}
+
+.status-warning {
+  background: #fef3c7;
+  color: #92400e;
+  border: 2px solid #f59e0b;
+}
+
+@keyframes pulse-critical {
+  0%, 100% { 
+    background: #fee2e2;
+  }
+  50% { 
+    background: #fecaca;
+  }
 }
 
 .loading-state {

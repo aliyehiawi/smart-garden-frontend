@@ -259,18 +259,28 @@ async function loadDeviceData(deviceId) {
 
     // Subscribe to device updates
     sensorsStore.subscribeToDevice(deviceId, {
-      onSensorData: (data) => {
-        console.log('New sensor data received:', data)
-        previousWaterLevel.value = latestReading.value?.waterLevel || null
-      },
-      onPumpStatus: (status) => {
-        console.log('Pump status updated:', status)
-        devicesStore.updatePumpStatus(deviceId, status)
-      },
-      onThresholdUpdate: (thresholdData) => {
-        console.log('Thresholds updated:', thresholdData)
-        thresholdsStore.setThresholds(deviceId, thresholdData)
-      },
+    onSensorData: (data) => {
+    console.log('New sensor data received:', data)
+    previousWaterLevel.value = latestReading.value?.waterLevel || null
+    
+    // Force re-render by updating timestamp
+    if (latestReadings.value[deviceId]) {
+      latestReadings.value[deviceId] = { ...latestReadings.value[deviceId] }
+    }
+  },
+  onPumpStatus: (status) => {
+    console.log('Pump status updated:', status)
+    
+    devicesStore.updatePumpStatus(deviceId, {
+      ...status,
+      lastUpdated: Date.now() 
+    })
+    
+    // Double-check the status persists
+    setTimeout(() => {
+      console.log('Verifying pump status after 100ms:', devicesStore.getPumpStatus(deviceId))
+    }, 100)
+  },
     })
 
     console.log('Device data loaded successfully')
