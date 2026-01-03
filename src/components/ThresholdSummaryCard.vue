@@ -61,7 +61,7 @@ const rangeStatus = computed(() => {
   return 'out-range'
 })
 
-const rangeStyle = computed(() => {
+const rangeStyle = computed(() => { 
   return {
     left: `${props.min}%`,
     width: `${props.max - props.min}%`

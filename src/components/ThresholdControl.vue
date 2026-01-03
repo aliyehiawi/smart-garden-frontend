@@ -30,42 +30,36 @@
     <div v-else-if="!hasData" class="no-data-warning">
       <span class="warning-icon">📊</span>
       <div class="warning-content">
-        <p>No threshold data available for this device. Please configure thresholds below.</p>
+        <p>No threshold data available for this device. Please configure thresholds below</p>
       </div>
     </div>
 
     <template v-else>
       <!-- Current Reading and Pump Status -->
       <div class="current-status-panel">
-        <div class="status-row">
-          <div class="status-item">
-            <span class="status-label">Current Distance Reading</span>
-            <span class="status-value" :class="getReadingClass">
-              {{ currentWaterLevel !== null ? currentWaterLevel.toFixed(1) : 'N/A' }} cm
-            </span>
-          </div>
-          <div class="status-item">
-            <span class="status-label">Pump Status</span>
-            <span class="pump-status" :class="pumpStatusClass">
-              <span class="status-dot"></span>
-              {{ pumpStatusText }}
-            </span>
-          </div>
-        </div>
+  <div class="status-row">
+    <div class="status-item">
+      <span class="status-label">Pump Status</span>
+      <span class="pump-status" :class="pumpStatusClass">
+        <span class="status-dot"></span>
+        {{ pumpStatusText }}
+      </span>
+    </div>
+  </div>
         
         <!-- Pump Control Logic Explanation -->
-        <div v-if="currentWaterLevel !== null" class="logic-explanation">
-          <div class="logic-icon">💡</div>
-          <div class="logic-content">
-            <strong>Automatic Pump Control Logic:</strong>
-            <ul>
-              <li><strong>Pump Starts:</strong> When distance ≥ {{ currentMax }} cm (tank is getting empty)</li>
-              <li><strong>Pump Stops:</strong> When distance ≤ {{ currentMin }} cm (tank is nearly full)</li>
-              <li><strong>Current Reading:</strong> {{ currentWaterLevel.toFixed(1) }} cm → {{ getPumpAction }}</li>
-            </ul>
-          </div>
-        </div>
-      </div>
+        <div class="logic-explanation">
+  <div class="logic-icon">💡</div>
+  <div class="logic-content">
+    <strong>Automatic Pump Control Logic:</strong>
+    <ul>
+      <li><strong>Pump Starts:</strong> When distance ≥ {{ currentMax }} cm (tank is getting empty)</li>
+      <li><strong>Pump Stops:</strong> When distance ≤ {{ currentMin }} cm (tank is nearly full)</li>
+      <li><strong>Safe Range:</strong> Between {{ currentMin }} cm and {{ currentMax }} cm</li>
+     </ul>
+    </div>
+   </div>
+  </div>
 
       <!-- Current Thresholds Display -->
       <div class="current-thresholds">
@@ -160,14 +154,17 @@
 
       <!-- Info Panel with Example -->
       <div class="info-panel">
-        <span class="info-icon">📊</span>
-        <div class="info-content">
-          <strong>Example Scenario:</strong>
-          <p>If Max Threshold = {{ currentMax }} cm and Current Reading = {{ (currentMax - 1.2).toFixed(1) }} cm:</p>
-          <p>Since {{ (currentMax - 1.2).toFixed(1) }} cm &lt; {{ currentMax }} cm → Tank is NOT empty enough → Pump will NOT start</p>
-          <p>If Current Reading = {{ (currentMax + 1.5).toFixed(1) }} cm → Since {{ (currentMax + 1.5).toFixed(1) }} cm ≥ {{ currentMax }} cm → Tank is empty enough → Pump CAN START</p>
-        </div>
-      </div>
+  <span class="info-icon">📊</span>
+  <div class="info-content">
+    <strong>Example Scenario:</strong>
+    <p><strong>Max Threshold = {{ currentMax }} cm:</strong></p>
+    <p>• If reading is {{ (currentMax - 1.2).toFixed(1) }} cm → Below max → Tank NOT empty → Pump will NOT start</p>
+    <p>• If reading is {{ (currentMax + 1.5).toFixed(1) }} cm → Above max → Tank empty → Pump WILL START</p>
+    <br>
+    <p><strong>Min Threshold = {{ currentMin }} cm:</strong></p>
+    <p>• If reading reaches {{ currentMin }} cm → Tank nearly full → Pump WILL STOP</p>
+  </div>
+</div>
     </template>
   </div>
 </template>
@@ -224,12 +221,6 @@ const currentMax = computed(() => {
   return currentThresholds.value.maxThreshold ?? currentThresholds.value.upperThreshold ?? null
 })
 
-const currentWaterLevel = computed(() => {
-  if (!currentDeviceId.value) return null
-  const reading = latestReadings.value[currentDeviceId.value]
-  return reading?.waterLevel ?? null
-})
-
 const currentStatus = computed(() => {
   if (currentWaterLevel.value === null || currentMin.value === null || currentMax.value === null) {
     return 'No Data Available'
@@ -279,18 +270,6 @@ const statusClass = computed(() => {
   if (level <= lowerWarning) return 'status-warning'       
   
   return 'status-normal'  
-})
-
-const getReadingClass = computed(() => {
-  if (currentWaterLevel.value === null || currentMin.value === null || currentMax.value === null) {
-    return 'reading-unknown'
-  }
-  
-  const level = currentWaterLevel.value
-  
-  if (level >= currentMax.value) return 'reading-critical'
-  if (level <= currentMin.value) return 'reading-good'
-  return 'reading-normal'
 })
 
 const pumpStatusText = computed(() => {
@@ -626,15 +605,14 @@ async function submitThresholds() {
 }
 
 .status-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  display: flex;
+  justify-content: center;
   gap: 1rem;
 }
 
 .status-item {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  flex: 0 1 auto;
+  min-width: 250px;
 }
 
 .status-label {
@@ -650,26 +628,6 @@ async function submitThresholds() {
   border-radius: 8px;
   background: white;
   text-align: center;
-}
-
-.reading-critical {
-  color: #dc2626;
-  border: 2px solid #fecaca;
-}
-
-.reading-good {
-  color: #059669;
-  border: 2px solid #a7f3d0;
-}
-
-.reading-normal {
-  color: #3b82f6;
-  border: 2px solid #bfdbfe;
-}
-
-.reading-unknown {
-  color: #6b7280;
-  border: 2px solid #e5e7eb;
 }
 
 .pump-status {

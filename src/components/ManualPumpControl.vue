@@ -39,8 +39,11 @@
         </div>
         
         <div class="info-item">
-          <span class="info-label">Running Time</span>
-          <span class="info-value">{{ runningTime }}</span>
+          <span class="info-label">Last Distance Reading</span>
+          <span class="info-value reading-value" :class="readingStatusClass">
+            {{ lastReadingDisplay }}
+          </span>
+          <span class="reading-time">{{ lastReadingTime }}</span>
         </div>
         
         <div class="info-item">
@@ -101,6 +104,9 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useSensorsStore } from '@/stores/sensors'
+import { useThresholdsStore } from '@/stores/thresholds'
 import { pumpAPI } from '@/utils/api'
 
 // Accept deviceId as prop
@@ -110,6 +116,12 @@ const props = defineProps({
     required: true
   }
 })
+
+// sensors store
+const sensorsStore = useSensorsStore()
+const thresholdsStore = useThresholdsStore()
+const { latestReadings } = storeToRefs(sensorsStore)
+const { thresholds } = storeToRefs(thresholdsStore)
 
 // State
 const loading = ref(false)
@@ -126,19 +138,44 @@ const pumpStatus = ref({
 let timerInterval = null
 let statusPollInterval = null
 
-// Computed
-const runningTime = computed(() => {
-  if (!pumpStatus.value.isRunning) return '0m 0s'
-  
-  const minutes = Math.floor(elapsedSeconds.value / 60)
-  const seconds = elapsedSeconds.value % 60
-  return `${minutes}m ${seconds}s`
+// Last Reading Computed Properties
+const lastReading = computed(() => {
+  if (!props.deviceId) return null
+  const reading = latestReadings.value[props.deviceId]
+  return reading?.waterLevel ?? null
 })
 
-const timerProgress = computed(() => {
-  if (!pumpStatus.value.isRunning) return 0
-  const maxSeconds = 10 * 60 // 10 minutes max
-  return Math.min((elapsedSeconds.value / maxSeconds) * 100, 100)
+const lastReadingTime = computed(() => {
+  if (!props.deviceId) return 'N/A'
+  const reading = latestReadings.value[props.deviceId]
+  if (!reading?.timestamp) return 'N/A'
+  
+  const date = new Date(reading.timestamp)
+  return date.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  })
+})
+
+const lastReadingDisplay = computed(() => {
+  if (lastReading.value === null) return 'N/A'
+  return `${lastReading.value.toFixed(1)} cm`
+})
+
+// Reading status indicator
+const readingStatusClass = computed(() => {
+  if (lastReading.value === null) return 'reading-unknown'
+  
+  const deviceThresholds = thresholds.value[props.deviceId]
+  if (!deviceThresholds) return 'reading-unknown'
+  
+  const min = deviceThresholds.minThreshold ?? deviceThresholds.lowerThreshold ?? 0
+  const max = deviceThresholds.maxThreshold ?? deviceThresholds.upperThreshold ?? 100
+  
+  if (lastReading.value >= max) return 'reading-critical' 
+  if (lastReading.value <= min) return 'reading-good'     
+  return 'reading-normal' 
 })
 
 const formattedLastUpdate = computed(() => {
@@ -469,6 +506,34 @@ async function startPump() {
 .info-value.timestamp {
   font-size: 0.875rem;
   color: #6B7280;
+}
+
+.info-value.reading-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.info-value.reading-critical {
+  color: #DC2626;
+}
+
+.info-value.reading-good {
+  color: #059669;
+}
+
+.info-value.reading-normal {
+  color: #3B82F6;
+}
+
+.info-value.reading-unknown {
+  color: #9CA3AF;
+}
+
+.reading-time {
+  font-size: 0.75rem;
+  color: #9CA3AF;
+  font-weight: 500;
+  margin-top: -0.25rem;
 }
 
 .mode-badge {
