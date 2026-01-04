@@ -1,136 +1,136 @@
-import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
-import { authAPI } from '@/utils/api';
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+import { authAPI } from '@/utils/api'
 
 export const useAuthStore = defineStore('auth', () => {
   // State
-  const user = ref(null);
-  const token = ref(null);
-  const loading = ref(false);
-  const error = ref(null);
+  const user = ref(null)
+  const token = ref(null)
+  const loading = ref(false)
+  const error = ref(null)
 
   // Getters
-  const isAuthenticated = computed(() => !!token.value);
-  const isAdmin = computed(() => user.value?.role === 'ADMIN');
-  const username = computed(() => user.value?.username || '');
-  const email = computed(() => user.value?.email || '');
+  const isAuthenticated = computed(() => !!token.value)
+  const isAdmin = computed(() => user.value?.role === 'ADMIN')
+  const username = computed(() => user.value?.username || '')
+  const email = computed(() => user.value?.email || '')
 
-   // Initialize auth from localStorage
+  // Initialize auth from localStorage
   function initAuth() {
-    const savedToken = localStorage.getItem('jwt_token');
-    const savedUser = localStorage.getItem('user');
+    const savedToken = localStorage.getItem('jwt_token')
+    const savedUser = localStorage.getItem('user')
 
     if (savedToken && savedUser) {
-      token.value = savedToken;
+      token.value = savedToken
       try {
-        user.value = JSON.parse(savedUser);
+        user.value = JSON.parse(savedUser)
       } catch (e) {
-        console.error('Error parsing saved user:', e);
-        clearAuth();
+        console.error('Error parsing saved user:', e)
+        clearAuth()
       }
     }
   }
 
   /**
    * Register a new user
-   * @param {Object} userData  username, password, email 
+   * @param {Object} userData  username, password, email
    */
   async function register(userData) {
-    loading.value = true;
-    error.value = null;
+    loading.value = true
+    error.value = null
 
     try {
-      const response = await authAPI.register(userData);
-      
+      const response = await authAPI.register(userData)
+
       // Backend returns { token, user } on successful registration
-      token.value = response.token;
-      user.value = response.user;
+      token.value = response.token
+      user.value = response.user
 
       // Save to localStorage
-      localStorage.setItem('jwt_token', response.token);
-      localStorage.setItem('user', JSON.stringify(response.user));
+      localStorage.setItem('jwt_token', response.token)
+      localStorage.setItem('user', JSON.stringify(response.user))
 
-      return { success: true };
+      return { success: true }
     } catch (err) {
-      const errorMessage = err.response?.data?.message || 'Registration failed';
-      error.value = errorMessage;
-      return { success: false, error: errorMessage };
+      const errorMessage = err.response?.data?.message || 'Registration failed'
+      error.value = errorMessage
+      return { success: false, error: errorMessage }
     } finally {
-      loading.value = false;
+      loading.value = false
     }
   }
 
   /**
    * Login user
-   * @param {Object} credentials  username, password 
+   * @param {Object} credentials  username, password
    */
   async function login(credentials) {
-    loading.value = true;
-    error.value = null;
+    loading.value = true
+    error.value = null
 
     try {
-      const response = await authAPI.login(credentials);
-      
+      const response = await authAPI.login(credentials)
+
       // Backend returns { token, user } on successful login
-      token.value = response.token;
-      user.value = response.user;
+      token.value = response.token
+      user.value = response.user
 
       // Save to localStorage
-      localStorage.setItem('jwt_token', response.token);
-      localStorage.setItem('user', JSON.stringify(response.user));
+      localStorage.setItem('jwt_token', response.token)
+      localStorage.setItem('user', JSON.stringify(response.user))
 
-      return { success: true };
+      return { success: true }
     } catch (err) {
-      const errorMessage = err.response?.data?.message || 'Login failed';
-      error.value = errorMessage;
-      return { success: false, error: errorMessage };
+      const errorMessage = err.response?.data?.message || 'Login failed'
+      error.value = errorMessage
+      return { success: false, error: errorMessage }
     } finally {
-      loading.value = false;
+      loading.value = false
     }
   }
 
-   // Logout user
+  // Logout user
   function logout() {
-    clearAuth();
+    clearAuth()
     // Redirect to login is handled by router
   }
 
-   // Fetch current user data from backend
+  // Fetch current user data from backend
   async function fetchCurrentUser() {
     if (!token.value) {
-      return { success: false, error: 'No token found' };
+      return { success: false, error: 'No token found' }
     }
 
-    loading.value = true;
-    error.value = null;
+    loading.value = true
+    error.value = null
 
     try {
-      const userData = await authAPI.getCurrentUser();
-      user.value = userData;
-      localStorage.setItem('user', JSON.stringify(userData));
-      return { success: true };
+      const userData = await authAPI.getCurrentUser()
+      user.value = userData
+      localStorage.setItem('user', JSON.stringify(userData))
+      return { success: true }
     } catch (err) {
-      const errorMessage = err.response?.data?.message || 'Failed to fetch user data';
-      error.value = errorMessage;
-      
+      const errorMessage = err.response?.data?.message || 'Failed to fetch user data'
+      error.value = errorMessage
+
       // If token is invalid, clear auth
       if (err.response?.status === 401) {
-        clearAuth();
+        clearAuth()
       }
-      
-      return { success: false, error: errorMessage };
+
+      return { success: false, error: errorMessage }
     } finally {
-      loading.value = false;
+      loading.value = false
     }
   }
 
-   // Clear authentication data
+  // Clear authentication data
   function clearAuth() {
-    user.value = null;
-    token.value = null;
-    error.value = null;
-    localStorage.removeItem('jwt_token');
-    localStorage.removeItem('user');
+    user.value = null
+    token.value = null
+    error.value = null
+    localStorage.removeItem('jwt_token')
+    localStorage.removeItem('user')
   }
 
   /**
@@ -138,11 +138,11 @@ export const useAuthStore = defineStore('auth', () => {
    * @returns {boolean}
    */
   function hasAdminAccess() {
-    return isAdmin.value;
+    return isAdmin.value
   }
 
   // Initialize auth on store creation
-  initAuth();
+  initAuth()
 
   return {
     // State
@@ -150,13 +150,13 @@ export const useAuthStore = defineStore('auth', () => {
     token,
     loading,
     error,
-    
+
     // Getters
     isAuthenticated,
     isAdmin,
     username,
     email,
-    
+
     // Actions
     register,
     login,
@@ -165,5 +165,5 @@ export const useAuthStore = defineStore('auth', () => {
     clearAuth,
     hasAdminAccess,
     initAuth,
-  };
-});
+  }
+})
