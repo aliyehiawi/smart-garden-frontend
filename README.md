@@ -541,9 +541,6 @@ Admin Account:
 Username: admin
 Password: admin123
 
-User Account:
-Username: user
-Password: user123
 ```
 
 **IMPORTANT:** Change these credentials in production!
@@ -599,19 +596,19 @@ docs(readme): update installation instructions
 
 ---
 
-## Quick Start Checklist
+## Quick Start 
 
-- [ ] Node.js 18+ installed (`node --version`)
-- [ ] npm 9+ installed (`npm --version`)
-- [ ] Repository cloned
-- [ ] Navigate to project directory
-- [ ] Run `npm install`
-- [ ] Create `.env` file
-- [ ] Configure backend API URL
-- [ ] Run `npm run dev`
-- [ ] Open `http://localhost:5173`
-- [ ] Login with test credentials
-- [ ] Backend server is running
-- [ ] IoT device is connected
+1- Node.js 18+ installed (`node --version`)
+2- npm 9+ installed (`npm --version`)
+3- Repository cloned
+4- Navigate to project directory
+5- Run `npm install`
+6- Create `.env` file
+7- Configure backend API URL
+8- Run `npm run dev`
+9- Open `http://localhost:5173`
+10- Login with test credentials
+11- Backend server is running
+12- IoT device is connected
 
 ---
