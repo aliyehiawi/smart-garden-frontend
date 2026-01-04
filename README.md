@@ -152,7 +152,7 @@ git --version
 
 ```bash
 # Clone the frontend repository
-git clone <your-repository-url>
+git clone 
 
 # Navigate to the project directory
 cd iot-smart-garden-frontend
