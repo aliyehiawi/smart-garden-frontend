@@ -1,14 +1,26 @@
-import './assets/main.css'
+import { createApp } from 'vue';
+import { createPinia } from 'pinia';
+import App from './App.vue';
+import router from './router';
 
-import { createApp } from 'vue'
-import { createPinia } from 'pinia'
+// Import global styles
+import './assets/main.css';
 
-import App from './App.vue'
-import router from './router'
+// Create Pinia instance
+const pinia = createPinia();
 
-const app = createApp(App)
+// Create Vue app
+const app = createApp(App);
 
-app.use(createPinia())
-app.use(router)
+// Use plugins
+app.use(pinia);
+app.use(router);
 
-app.mount('#app')
+// Mount app
+app.mount('#app');
+
+// Optional: Global error handler
+app.config.errorHandler = (err, instance, info) => {
+  console.error('Global error:', err);
+  console.error('Error info:', info);
+};
