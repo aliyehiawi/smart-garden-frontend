@@ -5,11 +5,6 @@
         <h3>Threshold Control</h3>
         <p class="subtitle">Configure water level boundaries for automatic pump control</p>
       </div>
-
-      <!-- Current Status Badge -->
-      <div v-if="currentDeviceId && hasData" class="status-badge" :class="statusClass">
-        {{ currentStatus }}
-      </div>
     </div>
 
     <!-- No Device Selected Warning -->
@@ -26,43 +21,23 @@
       <p>Loading threshold data...</p>
     </div>
 
-    <!-- No Data Available -->
-    <div v-else-if="!hasData" class="no-data-warning">
-      <span class="warning-icon">📊</span>
-      <div class="warning-content">
-        <p>No threshold data available for this device. Please configure thresholds below</p>
-      </div>
-    </div>
-
+    <!-- Main Content (show form even if no data) -->
     <template v-else>
+      <!-- No Data Notice (if applicable) -->
+      <div v-if="!hasData" class="info-notice">
+        <span class="info-icon">ℹ️</span>
+        <div class="info-content">
+          <p>
+            No threshold data found for this device. Configure thresholds below to enable automatic
+            pump control.
+          </p>
+        </div>
+      </div>
+
       <!-- Current Reading and Pump Status -->
-      <div class="current-status-panel">
-  <div class="status-row">
-    <div class="status-item">
-      <span class="status-label">Pump Status</span>
-      <span class="pump-status" :class="pumpStatusClass">
-        <span class="status-dot"></span>
-        {{ pumpStatusText }}
-      </span>
-    </div>
-  </div>
-        
-        <!-- Pump Control Logic Explanation -->
-        <div class="logic-explanation">
-  <div class="logic-icon">💡</div>
-  <div class="logic-content">
-    <strong>Automatic Pump Control Logic:</strong>
-    <ul>
-      <li><strong>Pump Starts:</strong> When distance ≥ {{ currentMax }} cm (tank is getting empty)</li>
-      <li><strong>Pump Stops:</strong> When distance ≤ {{ currentMin }} cm (tank is nearly full)</li>
-      <li><strong>Safe Range:</strong> Between {{ currentMin }} cm and {{ currentMax }} cm</li>
-     </ul>
-    </div>
-   </div>
-  </div>
 
       <!-- Current Thresholds Display -->
-      <div class="current-thresholds">
+      <div v-if="hasData" class="current-thresholds">
         <div class="threshold-display">
           <div class="threshold-label">
             <span class="icon">🔽</span>
@@ -80,7 +55,7 @@
             <span>Maximum Threshold (Start Pump)</span>
           </div>
           <div class="threshold-value max">{{ currentMax }} cm</div>
-          <div class="threshold-description">Tank is getting empty - Pump will START</div>
+          <div class="threshold-description">Tank is getting empty - We can start the PUMP</div>
         </div>
       </div>
 
@@ -89,7 +64,9 @@
         <div class="form-group">
           <label for="minThreshold" class="form-label">
             <span>Minimum Threshold (cm) - Stop Pump Distance</span>
-            <span class="label-hint">Pump STOPS when distance reading ≤ this value (tank nearly full)</span>
+            <span class="label-hint"
+              >Pump STOPS when distance reading ≤ this value (tank nearly full)</span
+            >
           </label>
           <div class="input-wrapper">
             <input
@@ -110,7 +87,9 @@
         <div class="form-group">
           <label for="maxThreshold" class="form-label">
             <span>Maximum Threshold (cm) - Start Pump Distance</span>
-            <span class="label-hint">Pump STARTS when distance reading ≥ this value (tank getting empty)</span>
+            <span class="label-hint"
+              >Pump STARTS when distance reading ≥ this value (tank getting empty)</span
+            >
           </label>
           <div class="input-wrapper">
             <input
@@ -154,17 +133,27 @@
 
       <!-- Info Panel with Example -->
       <div class="info-panel">
-  <span class="info-icon">📊</span>
-  <div class="info-content">
-    <strong>Example Scenario:</strong>
-    <p><strong>Max Threshold = {{ currentMax }} cm:</strong></p>
-    <p>• If reading is {{ (currentMax - 1.2).toFixed(1) }} cm → Below max → Tank NOT empty → Pump will NOT start</p>
-    <p>• If reading is {{ (currentMax + 1.5).toFixed(1) }} cm → Above max → Tank empty → Pump WILL START</p>
-    <br>
-    <p><strong>Min Threshold = {{ currentMin }} cm:</strong></p>
-    <p>• If reading reaches {{ currentMin }} cm → Tank nearly full → Pump WILL STOP</p>
-  </div>
-</div>
+        <span class="info-icon">📊</span>
+        <div class="info-content">
+          <strong>Example Scenario:</strong>
+          <p>
+            <strong>Max Threshold = {{ currentMax }} cm:</strong>
+          </p>
+          <p>
+            • If reading is {{ (currentMax - 1.2).toFixed(1) }} cm → Below max → Tank NOT empty →
+            Pump will NOT start
+          </p>
+          <p>
+            • If reading is {{ (currentMax + 1.5).toFixed(1) }} cm → Above max → Tank empty → Pump
+            WILL START
+          </p>
+          <br />
+          <p>
+            <strong>Min Threshold = {{ currentMin }} cm:</strong>
+          </p>
+          <p>• If reading reaches {{ currentMin }} cm → Tank nearly full → Pump WILL STOP</p>
+        </div>
+      </div>
     </template>
   </div>
 </template>
@@ -184,8 +173,8 @@ const devicesStore = useDevicesStore()
 const { latestReadings } = storeToRefs(sensorsStore)
 const { thresholds } = storeToRefs(thresholdsStore)
 
-const lowerThreshold = ref(null)
-const upperThreshold = ref(null)
+const lowerThreshold = ref(5)
+const upperThreshold = ref(20)
 const loading = ref(false)
 const feedbackMessage = ref('')
 const feedbackType = ref('success')
@@ -205,10 +194,23 @@ const currentThresholds = computed(() => {
 })
 
 const hasData = computed(() => {
-  return currentThresholds.value !== null && 
-         currentThresholds.value !== undefined &&
-         (currentThresholds.value.minThreshold !== undefined || 
-          currentThresholds.value.lowerThreshold !== undefined)
+  return (
+    currentThresholds.value !== null &&
+    currentThresholds.value !== undefined &&
+    (currentThresholds.value.minThreshold !== undefined ||
+      currentThresholds.value.lowerThreshold !== undefined)
+  )
+})
+
+const currentWaterLevel = computed(() => {
+  if (!currentDeviceId.value) return null
+  const reading = latestReadings.value[currentDeviceId.value]
+  return reading?.waterLevel ?? null
+})
+
+const currentPumpStatus = computed(() => {
+  if (!currentDeviceId.value) return null
+  return devicesStore.getPumpStatus(currentDeviceId.value)
 })
 
 const currentMin = computed(() => {
@@ -225,29 +227,29 @@ const currentStatus = computed(() => {
   if (currentWaterLevel.value === null || currentMin.value === null || currentMax.value === null) {
     return 'No Data Available'
   }
-  
-  const level = currentWaterLevel.value  
+
+  const level = currentWaterLevel.value
   if (level >= currentMax.value) {
     return 'CRITICAL - Tank Getting Empty (High Distance) - Pump MUST START'
   }
-  
+
   if (level <= currentMin.value) {
     return 'Tank Nearly Full (Low Distance) - Pump MUST STOP'
   }
-  
+
   // Check if close to thresholds (within 10% range)
   const range = currentMax.value - currentMin.value
-  const upperWarning = currentMax.value - (range * 0.1)
-  const lowerWarning = currentMin.value + (range * 0.1)
-  
+  const upperWarning = currentMax.value - range * 0.1
+  const lowerWarning = currentMin.value + range * 0.1
+
   if (level >= upperWarning) {
     return 'WARNING - Tank Low (Approaching Empty) - Monitor Closely'
   }
-  
+
   if (level <= lowerWarning) {
     return 'WARNING - Tank High (Approaching Full) - Monitor Closely'
   }
-  
+
   return 'Normal Range - No Action Needed'
 })
 
@@ -255,21 +257,21 @@ const statusClass = computed(() => {
   if (currentWaterLevel.value === null || currentMin.value === null || currentMax.value === null) {
     return 'status-unknown'
   }
-  
+
   const level = currentWaterLevel.value
   const range = currentMax.value - currentMin.value
-  const upperWarning = currentMax.value - (range * 0.1)
-  const lowerWarning = currentMin.value + (range * 0.1)
-  
+  const upperWarning = currentMax.value - range * 0.1
+  const lowerWarning = currentMin.value + range * 0.1
+
   // Critical states
-  if (level >= currentMax.value) return 'status-critical'  
-  if (level <= currentMin.value) return 'status-good'      
-  
+  if (level >= currentMax.value) return 'status-critical'
+  if (level <= currentMin.value) return 'status-good'
+
   // Warning states
-  if (level >= upperWarning) return 'status-warning'       
-  if (level <= lowerWarning) return 'status-warning'       
-  
-  return 'status-normal'  
+  if (level >= upperWarning) return 'status-warning'
+  if (level <= lowerWarning) return 'status-warning'
+
+  return 'status-normal'
 })
 
 const pumpStatusText = computed(() => {
@@ -286,17 +288,17 @@ const getPumpAction = computed(() => {
   if (currentWaterLevel.value === null || currentMin.value === null || currentMax.value === null) {
     return 'Waiting for data...'
   }
-  
+
   const level = currentWaterLevel.value
-  
+
   if (level >= currentMax.value) {
     return 'Pump SHOULD START'
   }
-  
+
   if (level <= currentMin.value) {
     return 'Pump SHOULD STOP'
   }
-  
+
   return 'No action needed'
 })
 
@@ -304,7 +306,7 @@ const validationError = computed(() => {
   if (lowerThreshold.value === null || upperThreshold.value === null) {
     return 'Please enter both threshold values'
   }
-  
+
   if (lowerThreshold.value < 0 || lowerThreshold.value > 200) {
     return 'Minimum threshold must be between 0 and 200 cm'
   }
@@ -334,19 +336,24 @@ onMounted(async () => {
   }
 })
 
-watch(currentDeviceId, async (newDeviceId) => {
-  console.log('🔄 Device ID changed in ThresholdControl:', newDeviceId)
+watch(currentDeviceId, async (newDeviceId, oldDeviceId) => {
+  console.log('🔄 Device ID changed in ThresholdControl:', oldDeviceId, '→', newDeviceId)
   if (newDeviceId) {
-    // Reset values
-    lowerThreshold.value = null
-    upperThreshold.value = null
+    // Reset to default values instead of null
+    lowerThreshold.value = 5
+    upperThreshold.value = 20
     await loadThresholds()
   }
 })
 
 watch([currentMin, currentMax], ([newMin, newMax]) => {
-  if (newMin !== null) lowerThreshold.value = newMin
-  if (newMax !== null) upperThreshold.value = newMax
+  // Only update if we have valid data from the store
+  if (newMin !== null && newMin !== undefined) {
+    lowerThreshold.value = newMin
+  }
+  if (newMax !== null && newMax !== undefined) {
+    upperThreshold.value = newMax
+  }
 })
 
 async function loadThresholds() {
@@ -359,12 +366,12 @@ async function loadThresholds() {
   console.log('Loading thresholds for device:', currentDeviceId.value)
 
   try {
-    const response = await thresholdAPI.getByDevice(currentDeviceId.value)
+    const response = await thresholdAPI.get(currentDeviceId.value)
 
     if (response) {
       const minValue = response.minThreshold ?? response.lowerThreshold
       const maxValue = response.maxThreshold ?? response.upperThreshold
-      
+
       lowerThreshold.value = minValue
       upperThreshold.value = maxValue
 
@@ -375,13 +382,16 @@ async function loadThresholds() {
         upperThreshold: maxValue,
       })
 
-      console.log('Thresholds loaded:', { min: minValue, max: maxValue })
+      console.log('✅ Thresholds loaded successfully:', { min: minValue, max: maxValue })
     }
   } catch (error) {
-    console.error('Failed to load thresholds:', error)
-    feedbackMessage.value = 'Failed to load thresholds. Please enter values manually.'
+    console.error('❌ Failed to load thresholds:', error)
+    // Set default values so form is still usable
+    lowerThreshold.value = lowerThreshold.value ?? 5
+    upperThreshold.value = upperThreshold.value ?? 20
+    feedbackMessage.value = 'Could not load existing thresholds. You can set new values below.'
     feedbackType.value = 'error'
-    
+
     setTimeout(() => {
       feedbackMessage.value = ''
     }, 5000)
@@ -404,7 +414,7 @@ async function submitThresholds() {
 
   console.log('Saving thresholds for device:', currentDeviceId.value, {
     min: lowerThreshold.value,
-    max: upperThreshold.value
+    max: upperThreshold.value,
   })
 
   try {
@@ -534,6 +544,33 @@ async function submitThresholds() {
   border-radius: 12px;
 }
 
+.info-notice {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: #dbeafe;
+  border: 2px solid #3b82f6;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+}
+
+.info-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.info-content {
+  flex: 1;
+}
+
+.info-content p {
+  margin: 0;
+  color: #1e40af;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
 .warning-icon {
   font-size: 2rem;
   flex-shrink: 0;
@@ -565,10 +602,11 @@ async function submitThresholds() {
 }
 
 @keyframes pulse-critical {
-  0%, 100% { 
+  0%,
+  100% {
     background: #fee2e2;
   }
-  50% { 
+  50% {
     background: #fecaca;
   }
 }
@@ -591,7 +629,9 @@ async function submitThresholds() {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .current-status-panel {
@@ -674,8 +714,13 @@ async function submitThresholds() {
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
 .logic-explanation {

@@ -6,19 +6,17 @@
       </div>
       <div class="card-title">Pump Status</div>
     </div>
-    
+
     <div class="card-body">
       <div class="main-value">{{ isRunning ? 'ON' : 'OFF' }}</div>
       <div class="status-row">
         <span class="status-badge" :class="`badge-${mode}`">
           {{ mode.toUpperCase() }}
         </span>
-        <span v-if="isRunning && runningTime" class="running-time">
-          🕐 {{ runningTime }}
-        </span>
+        <span v-if="isRunning && runningTime" class="running-time"> 🕐 {{ runningTime }} </span>
       </div>
     </div>
-    
+
     <div class="card-footer">
       <div class="pulse-indicator" :class="{ active: isRunning }">
         <span class="pulse-dot"></span>
@@ -32,31 +30,39 @@
 import { computed } from 'vue'
 import { watch } from 'vue'
 
-watch(() => props.isRunning, (newVal, oldVal) => {
-  if (newVal !== oldVal) {
-    console.log('Pump status changed:', oldVal, '→', newVal)
-    // Force re-render by updating a local reactive value
-  }
-}, { immediate: true })
+watch(
+  () => props.isRunning,
+  (newVal, oldVal) => {
+    if (newVal !== oldVal) {
+      console.log('Pump status changed:', oldVal, '→', newVal)
+      // Force re-render by updating a local reactive value
+    }
+  },
+  { immediate: true },
+)
 
-watch(() => props.runningTime, (newVal) => {
-  console.log('⏱️ Running time updated:', newVal)
-}, { immediate: true })
+watch(
+  () => props.runningTime,
+  (newVal) => {
+    console.log('⏱️ Running time updated:', newVal)
+  },
+  { immediate: true },
+)
 
 const props = defineProps({
   isRunning: {
     type: Boolean,
-    required: true
+    required: true,
   },
   mode: {
     type: String,
-    default: 'auto',
-    validator: (val) => ['auto', 'manual'].includes(val)
+    default: 'AUTO',
+    validator: (val) => ['AUTO', 'MANUAL', 'auto', 'manual'].includes(val),
   },
   runningTime: {
     type: String,
-    default: ''
-  }
+    default: '',
+  },
 })
 </script>
 
@@ -76,11 +82,11 @@ const props = defineProps({
 }
 
 .status-active {
-  border-color: #10B981;
+  border-color: #10b981;
 }
 
 .status-inactive {
-  border-color: #9CA3AF;
+  border-color: #9ca3af;
 }
 
 .card-header {
@@ -97,7 +103,7 @@ const props = defineProps({
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #E0E7FF, #C7D2FE);
+  background: linear-gradient(135deg, #e0e7ff, #c7d2fe);
   transition: transform 0.3s ease;
 }
 
@@ -121,7 +127,7 @@ const props = defineProps({
 .card-title {
   font-size: 0.875rem;
   font-weight: 600;
-  color: #6B7280;
+  color: #6b7280;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -133,7 +139,7 @@ const props = defineProps({
 .main-value {
   font-size: 2.5rem;
   font-weight: 700;
-  color: #1F2937;
+  color: #1f2937;
   line-height: 1;
   margin-bottom: 0.5rem;
 }
@@ -156,18 +162,18 @@ const props = defineProps({
 }
 
 .badge-auto {
-  background: #D1FAE5;
-  color: #065F46;
+  background: #d1fae5;
+  color: #065f46;
 }
 
 .badge-manual {
-  background: #FEF3C7;
-  color: #92400E;
+  background: #fef3c7;
+  color: #92400e;
 }
 
 .running-time {
   font-size: 0.875rem;
-  color: #6B7280;
+  color: #6b7280;
   font-weight: 500;
 }
 
@@ -185,16 +191,17 @@ const props = defineProps({
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #9CA3AF;
+  background: #9ca3af;
 }
 
 .pulse-indicator.active .pulse-dot {
-  background: #10B981;
+  background: #10b981;
   animation: pulse 2s ease-in-out infinite;
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
     transform: scale(1);
   }
@@ -207,10 +214,10 @@ const props = defineProps({
 .pulse-text {
   font-size: 0.875rem;
   font-weight: 500;
-  color: #6B7280;
+  color: #6b7280;
 }
 
 .pulse-indicator.active .pulse-text {
-  color: #10B981;
+  color: #10b981;
 }
 </style>

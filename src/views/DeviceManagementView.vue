@@ -28,6 +28,8 @@
 import { ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useDevicesStore } from '@/stores/devices'
+import { useSensorsStore } from '@/stores/sensors'
+import { useThresholdsStore } from '@/stores/thresholds'
 import MainLayout from '@/components/MainLayout.vue'
 import DeviceRegistration from '@/components/DeviceRegistration.vue'
 import DeviceList from '@/components/DeviceList.vue'
@@ -35,7 +37,10 @@ import ManualPumpControl from '@/components/ManualPumpControl.vue'
 import ThresholdControl from '@/components/ThresholdControl.vue'
 
 const devicesStore = useDevicesStore()
+const sensorsStore = useSensorsStore()
+const thresholdsStore = useThresholdsStore()
 const { selectedDevice } = storeToRefs(devicesStore)
+const { wsConnected } = storeToRefs(sensorsStore)
 const selectedDeviceId = ref(null)
 
 async function handleDeviceRegistered() {
@@ -44,12 +49,55 @@ async function handleDeviceRegistered() {
   console.log('Device registered')
 }
 
-function handlePumpControlSelected(device) {
+async function handlePumpControlSelected(device) {
   if (device) {
     selectedDeviceId.value = device.id
     devicesStore.selectDevice(device.id)
     console.log('Device selected for control:', device.name)
+
+    // Fetch all necessary data for the device
+    await Promise.all([
+      devicesStore.fetchPumpStatus(device.id),
+      thresholdsStore.fetchThresholds(device.id),
+      sensorsStore.fetchWaterLevelData(device.id, {
+        page: 0,
+        size: 20,
+        sort: 'timestamp,desc',
+      }),
+    ])
+
+    // Connect to WebSocket if not already connected
+    if (!wsConnected.value) {
+      sensorsStore.connectWebSocket()
+    }
+
+    // Subscribe to device updates for real-time data
+    sensorsStore.subscribeToDevice(device.id, {
+      onSensorData: (data) => {
+        console.log('New sensor data received:', data)
+      },
+      onPumpStatus: async (status) => {
+        console.log('Pump status updated:', status)
+        devicesStore.updatePumpStatus(device.id, status)
+
+        // When pump stops, fetch latest sensor reading to update the display
+        if (!status.isRunning) {
+          console.log('Pump stopped, fetching latest sensor data...')
+          await sensorsStore.fetchWaterLevelData(device.id, {
+            page: 0,
+            size: 1,
+            sort: 'timestamp,desc',
+          })
+        }
+      },
+    })
+
+    console.log('Device data loaded successfully')
   } else {
+    // Unsubscribe when device is deselected
+    if (selectedDeviceId.value) {
+      sensorsStore.unsubscribeFromDevice(selectedDeviceId.value)
+    }
     selectedDeviceId.value = null
     console.log('Device deselected')
   }
@@ -77,12 +125,12 @@ function handlePumpControlSelected(device) {
 .title-section h1 {
   font-size: 2rem;
   font-weight: 700;
-  color: #1F2937;
+  color: #1f2937;
   margin: 0 0 0.25rem 0;
 }
 
 .subtitle {
-  color: #6B7280;
+  color: #6b7280;
   margin: 0;
   font-size: 1rem;
 }
@@ -98,7 +146,7 @@ function handlePumpControlSelected(device) {
   .page-container {
     padding: 1.5rem;
   }
-  
+
   .control-section {
     grid-template-columns: 1fr;
   }
@@ -108,7 +156,7 @@ function handlePumpControlSelected(device) {
   .page-container {
     padding: 1rem;
   }
-  
+
   .page-header h1 {
     font-size: 1.5rem;
   }

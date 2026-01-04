@@ -30,7 +30,7 @@
       <div class="form-row">
         <div class="form-group">
           <label for="minThreshold" class="form-label">
-            <span>Min Threshold (%)</span>
+            <span>Min Threshold (cm)</span>
             <span class="required">*</span>
           </label>
           <input
@@ -51,7 +51,7 @@
 
         <div class="form-group">
           <label for="maxThreshold" class="form-label">
-            <span>Max Threshold (%)</span>
+            <span>Max Threshold (cm)</span>
             <span class="required">*</span>
           </label>
           <input
@@ -71,8 +71,8 @@
         </div>
       </div>
 
-      <button 
-        @click="registerDevice" 
+      <button
+        @click="registerDevice"
         class="btn-register"
         :disabled="loading || !deviceName.trim() || !minThreshold || !maxThreshold"
       >
@@ -98,13 +98,16 @@
           <span class="credential-label">Device Name</span>
           <span class="credential-value">{{ registeredDevice.name }}</span>
         </div>
-        
+
         <div class="credential-item">
           <span class="credential-label">Device ID</span>
           <div class="credential-value-wrapper">
             <code class="credential-value">{{ registeredDevice.id }}</code>
-            <button @click="copyToClipboard(registeredDevice.id.toString())" class="btn-copy" title="Copy Device ID">
-            </button>
+            <button
+              @click="copyToClipboard(registeredDevice.id.toString())"
+              class="btn-copy"
+              title="Copy Device ID"
+            ></button>
           </div>
         </div>
       </div>
@@ -118,7 +121,7 @@
             <p>This key will only be shown once. Copy it now!</p>
           </div>
         </div>
-        
+
         <div class="key-display">
           <code class="key-value">{{ registeredDevice.deviceKey }}</code>
           <button @click="copyToClipboard(registeredDevice.deviceKey)" class="btn-copy-key">
@@ -131,7 +134,9 @@
       <div class="info-panel">
         <div class="info-content">
           <strong>Configured Thresholds:</strong>
-          <p>Min: {{ registeredDevice.minThreshold }}% | Max: {{ registeredDevice.maxThreshold }}%</p>
+          <p>
+            Min: {{ registeredDevice.minThreshold }}cm | Max: {{ registeredDevice.maxThreshold }}cm
+          </p>
         </div>
       </div>
 
@@ -154,9 +159,7 @@
         <button @click="copyAllCredentials" class="btn-action btn-copy-all">
           Copy All Credentials
         </button>
-        <button @click="resetForm" class="btn-action btn-new">
-          Register Another Device
-        </button>
+        <button @click="resetForm" class="btn-action btn-new">Register Another Device</button>
       </div>
 
       <!-- Copy Feedback -->
@@ -183,7 +186,7 @@ const emit = defineEmits(['device-registered'])
 const errors = reactive({
   deviceName: '',
   minThreshold: '',
-  maxThreshold: ''
+  maxThreshold: '',
 })
 
 const registeredDevice = ref({
@@ -191,7 +194,7 @@ const registeredDevice = ref({
   name: '',
   deviceKey: '',
   minThreshold: 0,
-  maxThreshold: 0
+  maxThreshold: 0,
 })
 
 function clearError(field) {
@@ -200,7 +203,7 @@ function clearError(field) {
 
 function validateForm() {
   let isValid = true
-  
+
   // Device Name
   if (!deviceName.value.trim()) {
     errors.deviceName = 'Device name is required'
@@ -209,7 +212,7 @@ function validateForm() {
     errors.deviceName = 'Device name must be at least 3 characters'
     isValid = false
   }
-  
+
   // Min Threshold
   if (!minThreshold.value && minThreshold.value !== 0) {
     errors.minThreshold = 'Min threshold is required'
@@ -218,7 +221,7 @@ function validateForm() {
     errors.minThreshold = 'Min threshold must be between 0 and 100'
     isValid = false
   }
-  
+
   // Max Threshold
   if (!maxThreshold.value && maxThreshold.value !== 0) {
     errors.maxThreshold = 'Max threshold is required'
@@ -227,49 +230,51 @@ function validateForm() {
     errors.maxThreshold = 'Max threshold must be between 0 and 100'
     isValid = false
   }
-  
+
   // Threshold validation
   if (minThreshold.value >= maxThreshold.value) {
     errors.maxThreshold = 'Max threshold must be greater than min threshold'
     isValid = false
   }
-  
+
   return isValid
 }
 
 async function registerDevice() {
   // Clear previous errors
-  Object.keys(errors).forEach(key => errors[key] = '')
-  
+  Object.keys(errors).forEach((key) => (errors[key] = ''))
+
   if (!validateForm()) return
-  
+
   loading.value = true
-  
+
   try {
     // Backend API
     const response = await deviceAPI.register({
       name: deviceName.value.trim(),
       minThreshold: minThreshold.value,
-      maxThreshold: maxThreshold.value
+      maxThreshold: maxThreshold.value,
     })
-    
+
     // Backend returns device info
     registeredDevice.value = {
       id: response.id,
       name: response.name,
       deviceKey: response.deviceKey,
       minThreshold: response.minThreshold,
-      maxThreshold: response.maxThreshold
+      maxThreshold: response.maxThreshold,
     }
-    
+
     showSuccess.value = true
-    
+
     // Emit event to parent to refresh device list
     emit('device-registered')
-    
   } catch (error) {
     console.error('Device registration failed:', error)
-    errors.deviceName = error.response?.data?.message || error.message || 'Failed to register device. Please try again.'
+    errors.deviceName =
+      error.response?.data?.message ||
+      error.message ||
+      'Failed to register device. Please try again.'
   } finally {
     loading.value = false
   }
@@ -294,7 +299,7 @@ Min Threshold: ${registeredDevice.value.minThreshold}%
 Max Threshold: ${registeredDevice.value.maxThreshold}%
 
 ⚠️ Keep this information secure!`
-  
+
   copyToClipboard(credentials)
 }
 
@@ -303,21 +308,21 @@ function resetForm() {
   deviceName.value = ''
   minThreshold.value = 20
   maxThreshold.value = 80
-  
+
   // Reset showSuccess to FALSE to show the form again
   showSuccess.value = false
-  
+
   // Clear registered device data
   registeredDevice.value = {
     id: null,
     name: '',
     deviceKey: '',
     minThreshold: 0,
-    maxThreshold: 0
+    maxThreshold: 0,
   }
-  
+
   // Clear all errors
-  Object.keys(errors).forEach(key => errors[key] = '')
+  Object.keys(errors).forEach((key) => (errors[key] = ''))
 }
 </script>
 
@@ -356,13 +361,13 @@ function resetForm() {
 .title-section h3 {
   font-size: 1.25rem;
   font-weight: 700;
-  color: #1F2937;
+  color: #1f2937;
   margin: 0 0 0.25rem 0;
 }
 
 .subtitle {
   font-size: 0.875rem;
-  color: #6B7280;
+  color: #6b7280;
   margin: 0;
 }
 
@@ -394,17 +399,17 @@ function resetForm() {
 }
 
 .required {
-  color: #EF4444;
+  color: #ef4444;
   font-weight: 700;
 }
 
 .form-input {
   width: 100%;
   padding: 0.875rem 1rem;
-  border: 2px solid #E5E7EB;
+  border: 2px solid #e5e7eb;
   border-radius: 10px;
   font-size: 1rem;
-  color: #1F2937;
+  color: #1f2937;
   background: white;
   transition: all 0.2s;
 }
@@ -421,11 +426,11 @@ function resetForm() {
 }
 
 .form-input.input-error {
-  border-color: #EF4444;
+  border-color: #ef4444;
 }
 
 .error-text {
-  color: #EF4444;
+  color: #ef4444;
   font-size: 0.8125rem;
   font-weight: 500;
 }
@@ -436,7 +441,7 @@ function resetForm() {
   justify-content: center;
   gap: 0.75rem;
   padding: 1rem 1.5rem;
-  background: linear-gradient(135deg, #10B981, #059669);
+  background: linear-gradient(135deg, #10b981, #059669);
   color: white;
   border: none;
   border-radius: 12px;
@@ -472,8 +477,8 @@ function resetForm() {
   display: flex;
   gap: 1rem;
   padding: 1.5rem;
-  background: linear-gradient(135deg, #D1FAE5, #A7F3D0);
-  border: 2px solid #10B981;
+  background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+  border: 2px solid #10b981;
   border-radius: 12px;
 }
 
@@ -484,7 +489,7 @@ function resetForm() {
 .success-header h4 {
   font-size: 1.125rem;
   font-weight: 700;
-  color: #065F46;
+  color: #065f46;
   margin: 0 0 0.25rem 0;
 }
 
@@ -505,15 +510,15 @@ function resetForm() {
   flex-direction: column;
   gap: 0.5rem;
   padding: 1rem;
-  background: #F9FAFB;
-  border: 2px solid #E5E7EB;
+  background: #f9fafb;
+  border: 2px solid #e5e7eb;
   border-radius: 10px;
 }
 
 .credential-label {
   font-size: 0.75rem;
   font-weight: 600;
-  color: #6B7280;
+  color: #6b7280;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -527,7 +532,7 @@ function resetForm() {
 .credential-value {
   font-size: 1rem;
   font-weight: 600;
-  color: #1F2937;
+  color: #1f2937;
   font-family: 'Courier New', monospace;
   flex: 1;
   word-break: break-all;
@@ -536,7 +541,7 @@ function resetForm() {
 .btn-copy {
   padding: 0.5rem;
   background: white;
-  border: 2px solid #E5E7EB;
+  border: 2px solid #e5e7eb;
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s;
@@ -545,14 +550,14 @@ function resetForm() {
 }
 
 .btn-copy:hover {
-  border-color: #10B981;
-  background: #F0FDF4;
+  border-color: #10b981;
+  background: #f0fdf4;
 }
 
 .device-key-section {
   padding: 1.5rem;
-  background: linear-gradient(135deg, #FEF3C7, #FDE68A);
-  border: 2px solid #F59E0B;
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  border: 2px solid #f59e0b;
   border-radius: 12px;
 }
 
@@ -570,13 +575,13 @@ function resetForm() {
 .key-header strong {
   display: block;
   font-size: 1rem;
-  color: #92400E;
+  color: #92400e;
   margin-bottom: 0.25rem;
 }
 
 .key-header p {
   font-size: 0.875rem;
-  color: #78350F;
+  color: #78350f;
   margin: 0;
 }
 
@@ -586,7 +591,7 @@ function resetForm() {
   gap: 1rem;
   padding: 1rem;
   background: white;
-  border: 2px solid #F59E0B;
+  border: 2px solid #f59e0b;
   border-radius: 10px;
 }
 
@@ -594,17 +599,17 @@ function resetForm() {
   flex: 1;
   font-size: 0.9375rem;
   font-weight: 700;
-  color: #92400E;
+  color: #92400e;
   font-family: 'Courier New', monospace;
   word-break: break-all;
   padding: 0.5rem;
-  background: #FFFBEB;
+  background: #fffbeb;
   border-radius: 6px;
 }
 
 .btn-copy-key {
   padding: 0.75rem 1.25rem;
-  background: linear-gradient(135deg, #F59E0B, #D97706);
+  background: linear-gradient(135deg, #f59e0b, #d97706);
   color: white;
   border: none;
   border-radius: 8px;
@@ -625,14 +630,14 @@ function resetForm() {
   display: flex;
   gap: 1rem;
   padding: 1rem;
-  background: #EFF6FF;
-  border: 2px solid #3B82F6;
+  background: #eff6ff;
+  border: 2px solid #3b82f6;
   border-radius: 10px;
 }
 
 .info-content {
   font-size: 0.8125rem;
-  color: #1E40AF;
+  color: #1e40af;
   line-height: 1.4;
 }
 
@@ -646,8 +651,8 @@ function resetForm() {
   display: flex;
   gap: 1rem;
   padding: 1.5rem;
-  background: linear-gradient(135deg, #FEE2E2, #FECACA);
-  border: 2px solid #EF4444;
+  background: linear-gradient(135deg, #fee2e2, #fecaca);
+  border: 2px solid #ef4444;
   border-radius: 12px;
 }
 
@@ -663,14 +668,14 @@ function resetForm() {
 .warning-content strong {
   display: block;
   font-size: 0.9375rem;
-  color: #991B1B;
+  color: #991b1b;
   margin-bottom: 0.5rem;
 }
 
 .warning-content ul {
   margin: 0;
   padding-left: 1.25rem;
-  color: #991B1B;
+  color: #991b1b;
   font-size: 0.8125rem;
   line-height: 1.6;
 }
@@ -700,7 +705,7 @@ function resetForm() {
 }
 
 .btn-copy-all {
-  background: linear-gradient(135deg, #3B82F6, #2563EB);
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
   color: white;
 }
 
@@ -710,7 +715,7 @@ function resetForm() {
 }
 
 .btn-new {
-  background: linear-gradient(135deg, #10B981, #059669);
+  background: linear-gradient(135deg, #10b981, #059669);
   color: white;
 }
 
@@ -721,10 +726,10 @@ function resetForm() {
 
 .copy-feedback {
   padding: 1rem;
-  background: #D1FAE5;
-  border: 2px solid #10B981;
+  background: #d1fae5;
+  border: 2px solid #10b981;
   border-radius: 10px;
-  color: #065F46;
+  color: #065f46;
   font-weight: 600;
   text-align: center;
 }
@@ -744,23 +749,23 @@ function resetForm() {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .form-row {
     grid-template-columns: 1fr;
   }
-  
+
   .credentials-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .action-buttons {
     grid-template-columns: 1fr;
   }
-  
+
   .key-display {
     flex-direction: column;
   }
-  
+
   .btn-copy-key {
     width: 100%;
   }

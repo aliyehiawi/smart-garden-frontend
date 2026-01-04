@@ -5,7 +5,7 @@
         <h3>Manual Pump Control</h3>
         <p class="subtitle">Direct pump activation control</p>
       </div>
-      
+
       <!-- Pump Status Indicator -->
       <div class="pump-status-indicator" :class="{ active: pumpStatus.isRunning }">
         <span class="status-dot"></span>
@@ -25,7 +25,10 @@
         <span class="warning-icon">⚠️</span>
         <div class="warning-content">
           <strong>Safety Notice:</strong>
-          <p>Manual pump activation will override automatic controls. The pump will automatically stop when water reaches maximum threshold or after the configured duration.</p>
+          <p>
+            Manual pump activation will override automatic controls. The pump will automatically
+            stop when water reaches maximum threshold or after the configured duration.
+          </p>
         </div>
       </div>
 
@@ -37,7 +40,7 @@
             {{ pumpStatus.isRunning ? 'Running' : 'Stopped' }}
           </span>
         </div>
-        
+
         <div class="info-item">
           <span class="info-label">Last Distance Reading</span>
           <span class="info-value reading-value" :class="readingStatusClass">
@@ -45,7 +48,7 @@
           </span>
           <span class="reading-time">{{ lastReadingTime }}</span>
         </div>
-        
+
         <div class="info-item">
           <span class="info-label">Mode</span>
           <span class="info-value">
@@ -54,21 +57,24 @@
             </span>
           </span>
         </div>
-        
+
         <div class="info-item">
           <span class="info-label">Last Updated</span>
           <span class="info-value timestamp">{{ formattedLastUpdate }}</span>
         </div>
       </div>
 
+      <!-- Tank Status Message -->
+      <div v-if="tankStatusMessage" :class="['tank-status-message', tankStatusClass]">
+        {{ tankStatusMessage }}
+      </div>
+
       <!-- Control Buttons -->
       <div class="control-buttons">
-        <button 
-          @click="startPump" 
-          :disabled="pumpStatus.isRunning || loading"
-          class="btn-control btn-start"
-        >
-          <span>{{ loading ? 'Starting...' : pumpStatus.isRunning ? 'Pump Running' : 'Start Pump' }}</span>
+        <button @click="startPump" :disabled="!canStartPump" class="btn-control btn-start">
+          <span>{{
+            loading ? 'Starting...' : pumpStatus.isRunning ? 'Pump Running' : 'Start Pump'
+          }}</span>
         </button>
       </div>
 
@@ -77,7 +83,10 @@
         <span class="info-icon">ℹ️</span>
         <div class="info-content">
           <strong>Automatic Stop:</strong>
-          <p>The pump will automatically stop when water level reaches the maximum threshold or after a safety timeout period.</p>
+          <p>
+            The pump will automatically stop when water level reaches the maximum threshold or after
+            a safety timeout period.
+          </p>
         </div>
       </div>
 
@@ -94,9 +103,7 @@
         <div class="timer-bar">
           <div class="timer-fill" :style="{ width: timerProgress + '%' }"></div>
         </div>
-        <p class="timer-text">
-          Pump has been running for {{ runningTime }}.
-        </p>
+        <p class="timer-text">Pump has been running for {{ runningTime }}.</p>
       </div>
     </template>
   </div>
@@ -113,8 +120,8 @@ import { pumpAPI } from '@/utils/api'
 const props = defineProps({
   deviceId: {
     type: Number,
-    required: true
-  }
+    required: true,
+  },
 })
 
 // sensors store
@@ -132,7 +139,7 @@ const elapsedSeconds = ref(0)
 const pumpStatus = ref({
   isRunning: false,
   mode: 'AUTO',
-  lastUpdate: null
+  lastUpdate: null,
 })
 
 let timerInterval = null
@@ -149,7 +156,7 @@ const lastReadingTime = computed(() => {
   if (!props.deviceId) return 'N/A'
   const reading = latestReadings.value[props.deviceId]
   if (!reading?.timestamp) return 'N/A'
-  
+
   const date = new Date(reading.timestamp)
   return date.toLocaleTimeString('en-US', {
     hour: '2-digit',
@@ -166,16 +173,16 @@ const lastReadingDisplay = computed(() => {
 // Reading status indicator
 const readingStatusClass = computed(() => {
   if (lastReading.value === null) return 'reading-unknown'
-  
+
   const deviceThresholds = thresholds.value[props.deviceId]
   if (!deviceThresholds) return 'reading-unknown'
-  
+
   const min = deviceThresholds.minThreshold ?? deviceThresholds.lowerThreshold ?? 0
   const max = deviceThresholds.maxThreshold ?? deviceThresholds.upperThreshold ?? 100
-  
-  if (lastReading.value >= max) return 'reading-critical' 
-  if (lastReading.value <= min) return 'reading-good'     
-  return 'reading-normal' 
+
+  if (lastReading.value >= max) return 'reading-critical'
+  if (lastReading.value <= min) return 'reading-good'
+  return 'reading-normal'
 })
 
 const formattedLastUpdate = computed(() => {
@@ -185,7 +192,7 @@ const formattedLastUpdate = computed(() => {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
   })
 })
 
@@ -193,15 +200,94 @@ const feedbackIcon = computed(() => {
   return feedbackType.value === 'success' ? '✅' : '❌'
 })
 
-// Watch for device changes
-watch(() => props.deviceId, (newDeviceId) => {
-  if (newDeviceId) {
-    fetchPumpStatus()
-    startStatusPolling()
-  } else {
-    stopStatusPolling()
+// Tank status message based on thresholds
+const tankStatusMessage = computed(() => {
+  if (lastReading.value === null) return null
+
+  const deviceThresholds = thresholds.value[props.deviceId]
+  if (!deviceThresholds) return null
+
+  const min = deviceThresholds.minThreshold ?? deviceThresholds.lowerThreshold ?? 0
+  const max = deviceThresholds.maxThreshold ?? deviceThresholds.upperThreshold ?? 100
+
+  if (lastReading.value >= max) {
+    return 'CRITICAL - Tank Getting Empty (High Distance) - Pump MUST START'
   }
-}, { immediate: true })
+
+  if (lastReading.value <= min) {
+    return 'Tank Nearly Full (Low Distance) - Pump Should Stop'
+  }
+
+  return null
+})
+
+const tankStatusClass = computed(() => {
+  if (lastReading.value === null) return ''
+
+  const deviceThresholds = thresholds.value[props.deviceId]
+  if (!deviceThresholds) return ''
+
+  const max = deviceThresholds.maxThreshold ?? deviceThresholds.upperThreshold ?? 100
+
+  if (lastReading.value >= max) {
+    return 'status-critical'
+  }
+
+  return 'status-info'
+})
+
+// Can start pump only if reading is above max threshold (tank getting empty)
+const canStartPump = computed(() => {
+  if (pumpStatus.value.isRunning || loading.value) return false
+  if (lastReading.value === null) return false
+
+  const deviceThresholds = thresholds.value[props.deviceId]
+  if (!deviceThresholds) return true // Allow if no thresholds configured
+
+  const max = deviceThresholds.maxThreshold ?? deviceThresholds.upperThreshold ?? 100
+
+  // Only allow starting pump when reading >= max (tank is getting empty)
+  return lastReading.value >= max
+})
+
+// Running time display
+const runningTime = computed(() => {
+  if (elapsedSeconds.value === 0) return '0s'
+
+  const hours = Math.floor(elapsedSeconds.value / 3600)
+  const minutes = Math.floor((elapsedSeconds.value % 3600) / 60)
+  const seconds = elapsedSeconds.value % 60
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m ${seconds}s`
+  } else if (minutes > 0) {
+    return `${minutes}m ${seconds}s`
+  } else {
+    return `${seconds}s`
+  }
+})
+
+// Timer progress (0-100%)
+const timerProgress = computed(() => {
+  // Assume max safe running time is 10 minutes (600 seconds)
+  const maxTime = 600
+  const progress = (elapsedSeconds.value / maxTime) * 100
+  return Math.min(progress, 100)
+})
+
+// Watch for device changes
+watch(
+  () => props.deviceId,
+  (newDeviceId) => {
+    if (newDeviceId) {
+      fetchPumpStatus()
+      startStatusPolling()
+    } else {
+      stopStatusPolling()
+    }
+  },
+  { immediate: true },
+)
 
 // Lifecycle
 onMounted(() => {
@@ -219,17 +305,29 @@ onUnmounted(() => {
 // Methods
 async function fetchPumpStatus() {
   if (!props.deviceId) return
-  
+
   try {
     const response = await pumpAPI.getStatus(props.deviceId)
-    
+
+    const previousRunningState = pumpStatus.value.isRunning
+
     // Update pump status from backend response
     pumpStatus.value = {
       isRunning: response.isRunning || false,
       mode: response.mode || 'AUTO',
-      lastUpdate: response.lastUpdate || new Date().toISOString()
+      lastUpdate: response.lastUpdate || new Date().toISOString(),
     }
-    
+
+    // If pump just stopped, fetch latest sensor reading
+    if (previousRunningState && !pumpStatus.value.isRunning) {
+      console.log('Pump just stopped, fetching latest sensor data...')
+      await sensorsStore.fetchWaterLevelData(props.deviceId, {
+        page: 0,
+        size: 1,
+        sort: 'timestamp,desc',
+      })
+    }
+
     // Start timer if pump is running
     if (pumpStatus.value.isRunning && !timerInterval) {
       startTimer()
@@ -244,7 +342,7 @@ async function fetchPumpStatus() {
 
 function startStatusPolling() {
   stopStatusPolling() // Clear any existing interval
-  
+
   // Poll every 5 seconds
   statusPollInterval = setInterval(() => {
     fetchPumpStatus()
@@ -259,8 +357,8 @@ function stopStatusPolling() {
 }
 
 function startTimer() {
-  startTime.value = Date.now() - (elapsedSeconds.value * 1000)
-  
+  startTime.value = Date.now() - elapsedSeconds.value * 1000
+
   timerInterval = setInterval(() => {
     elapsedSeconds.value = Math.floor((Date.now() - startTime.value) / 1000)
   }, 1000)
@@ -283,36 +381,36 @@ async function startPump() {
 
   loading.value = true
   feedbackMessage.value = ''
-  
+
   try {
     // Call backend API
     const response = await pumpAPI.start(props.deviceId)
-    
+
     // Update local status
     pumpStatus.value.isRunning = true
     pumpStatus.value.mode = 'MANUAL'
     pumpStatus.value.lastUpdate = new Date().toISOString()
-    
+
+    // Reset and start timer
+    elapsedSeconds.value = 0
     startTimer()
-    
-    feedbackMessage.value = 'Pump started successfully! It will automatically stop when water reaches the maximum threshold.'
+
+    feedbackMessage.value =
+      'Pump started successfully! It will automatically stop when water reaches the maximum threshold.'
     feedbackType.value = 'success'
-    
-    // Refresh status from backend
-    setTimeout(() => {
-      fetchPumpStatus()
-    }, 1000)
-    
+
+    // Don't fetch status immediately to avoid flickering
+    // WebSocket will handle real-time updates
+
     // Clear feedback message after 7 seconds
     setTimeout(() => {
       feedbackMessage.value = ''
     }, 7000)
-    
   } catch (error) {
     console.error('Pump start error:', error)
     feedbackMessage.value = error.message || 'Failed to start pump. Please try again.'
     feedbackType.value = 'error'
-    
+
     setTimeout(() => {
       feedbackMessage.value = ''
     }, 5000)
@@ -328,7 +426,7 @@ async function startPump() {
   border-radius: 16px;
   padding: 1.5rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  border: 2px solid #3B82F6;
+  border: 2px solid #3b82f6;
   transition: all 0.3s ease;
   position: relative;
   width: 100%;
@@ -343,7 +441,7 @@ async function startPump() {
 .control-card:hover {
   box-shadow: 0 8px 20px rgba(59, 130, 246, 0.2);
   transform: translateY(-4px);
-  border-color: #2563EB;
+  border-color: #2563eb;
 }
 
 .card-header {
@@ -357,13 +455,13 @@ async function startPump() {
 .title-section h3 {
   font-size: 1.25rem;
   font-weight: 700;
-  color: #1F2937;
+  color: #1f2937;
   margin: 0 0 0.25rem 0;
 }
 
 .subtitle {
   font-size: 0.875rem;
-  color: #6B7280;
+  color: #6b7280;
   margin: 0;
 }
 
@@ -372,31 +470,32 @@ async function startPump() {
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
-  background: #F3F4F6;
+  background: #f3f4f6;
   border-radius: 8px;
-  border: 2px solid #E5E7EB;
+  border: 2px solid #e5e7eb;
   transition: all 0.3s;
 }
 
 .pump-status-indicator.active {
-  background: #DCFCE7;
-  border-color: #10B981;
+  background: #dcfce7;
+  border-color: #10b981;
 }
 
 .status-dot {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: #9CA3AF;
+  background: #9ca3af;
 }
 
 .pump-status-indicator.active .status-dot {
-  background: #10B981;
+  background: #10b981;
   animation: pulse-status 2s ease-in-out infinite;
 }
 
 @keyframes pulse-status {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
     transform: scale(1);
   }
@@ -409,11 +508,11 @@ async function startPump() {
 .status-text {
   font-size: 0.875rem;
   font-weight: 600;
-  color: #6B7280;
+  color: #6b7280;
 }
 
 .pump-status-indicator.active .status-text {
-  color: #065F46;
+  color: #065f46;
 }
 
 .device-warning {
@@ -421,8 +520,8 @@ async function startPump() {
   align-items: center;
   gap: 1rem;
   padding: 1rem;
-  background: #FEF3C7;
-  border: 2px solid #F59E0B;
+  background: #fef3c7;
+  border: 2px solid #f59e0b;
   border-radius: 12px;
 }
 
@@ -433,7 +532,7 @@ async function startPump() {
 
 .device-warning p {
   margin: 0;
-  color: #78350F;
+  color: #78350f;
   font-size: 0.875rem;
 }
 
@@ -441,8 +540,8 @@ async function startPump() {
   display: flex;
   gap: 1rem;
   padding: 1rem;
-  background: linear-gradient(135deg, #FEF3C7, #FDE68A);
-  border: 2px solid #F59E0B;
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  border: 2px solid #f59e0b;
   border-radius: 12px;
 }
 
@@ -457,13 +556,13 @@ async function startPump() {
 
 .warning-content strong {
   display: block;
-  color: #92400E;
+  color: #92400e;
   font-size: 0.875rem;
   margin-bottom: 0.25rem;
 }
 
 .warning-content p {
-  color: #78350F;
+  color: #78350f;
   font-size: 0.8125rem;
   margin: 0;
   line-height: 1.4;
@@ -480,15 +579,15 @@ async function startPump() {
   flex-direction: column;
   gap: 0.5rem;
   padding: 1rem;
-  background: #F9FAFB;
+  background: #f9fafb;
   border-radius: 10px;
-  border: 1px solid #E5E7EB;
+  border: 1px solid #e5e7eb;
 }
 
 .info-label {
   font-size: 0.75rem;
   font-weight: 600;
-  color: #6B7280;
+  color: #6b7280;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -496,16 +595,16 @@ async function startPump() {
 .info-value {
   font-size: 1rem;
   font-weight: 600;
-  color: #1F2937;
+  color: #1f2937;
 }
 
 .info-value.text-active {
-  color: #10B981;
+  color: #10b981;
 }
 
 .info-value.timestamp {
   font-size: 0.875rem;
-  color: #6B7280;
+  color: #6b7280;
 }
 
 .info-value.reading-value {
@@ -514,7 +613,7 @@ async function startPump() {
 }
 
 .info-value.reading-critical {
-  color: #DC2626;
+  color: #dc2626;
 }
 
 .info-value.reading-good {
@@ -522,16 +621,16 @@ async function startPump() {
 }
 
 .info-value.reading-normal {
-  color: #3B82F6;
+  color: #3b82f6;
 }
 
 .info-value.reading-unknown {
-  color: #9CA3AF;
+  color: #9ca3af;
 }
 
 .reading-time {
   font-size: 0.75rem;
-  color: #9CA3AF;
+  color: #9ca3af;
   font-weight: 500;
   margin-top: -0.25rem;
 }
@@ -546,14 +645,47 @@ async function startPump() {
 
 .mode-MANUAL,
 .mode-manual {
-  background: #FEF3C7;
-  color: #92400E;
+  background: #fef3c7;
+  color: #92400e;
 }
 
 .mode-AUTO,
 .mode-auto {
-  background: #D1FAE5;
-  color: #065F46;
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.tank-status-message {
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 1.5rem;
+  border: 2px solid;
+}
+
+.tank-status-message.status-critical {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #ef4444;
+  animation: pulse-critical 2s ease-in-out infinite;
+}
+
+.tank-status-message.status-info {
+  background: #dbeafe;
+  color: #1e40af;
+  border-color: #3b82f6;
+}
+
+@keyframes pulse-critical {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.85;
+  }
 }
 
 .control-buttons {
@@ -584,7 +716,7 @@ async function startPump() {
 }
 
 .btn-start {
-  background: linear-gradient(135deg, #3B82F6, #2563EB);
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
   color: white;
 }
 
@@ -604,15 +736,15 @@ async function startPump() {
 }
 
 .feedback-message.success {
-  background: #D1FAE5;
-  color: #065F46;
-  border: 2px solid #10B981;
+  background: #d1fae5;
+  color: #065f46;
+  border: 2px solid #10b981;
 }
 
 .feedback-message.error {
-  background: #FEE2E2;
-  color: #991B1B;
-  border: 2px solid #EF4444;
+  background: #fee2e2;
+  color: #991b1b;
+  border: 2px solid #ef4444;
 }
 
 .feedback-icon {
@@ -621,14 +753,14 @@ async function startPump() {
 
 .running-timer {
   padding: 1rem;
-  background: #EFF6FF;
-  border: 2px solid #3B82F6;
+  background: #eff6ff;
+  border: 2px solid #3b82f6;
   border-radius: 12px;
 }
 
 .timer-bar {
   height: 8px;
-  background: #E5E7EB;
+  background: #e5e7eb;
   border-radius: 4px;
   overflow: hidden;
   margin-bottom: 0.75rem;
@@ -636,14 +768,14 @@ async function startPump() {
 
 .timer-fill {
   height: 100%;
-  background: linear-gradient(90deg, #10B981, #F59E0B, #EF4444);
+  background: linear-gradient(90deg, #10b981, #f59e0b, #ef4444);
   border-radius: 4px;
   transition: width 0.3s ease;
 }
 
 .timer-text {
   font-size: 0.8125rem;
-  color: #1E40AF;
+  color: #1e40af;
   margin: 0;
   text-align: center;
 }
@@ -652,15 +784,15 @@ async function startPump() {
   display: flex;
   gap: 1rem;
   padding: 1rem;
-  background: #DBEAFE;
-  border: 2px solid #3B82F6;
+  background: #dbeafe;
+  border: 2px solid #3b82f6;
   border-radius: 12px;
 }
 
 .auto-stop-info .info-icon {
   font-size: 1.5rem;
   flex-shrink: 0;
-  color: #1E40AF;
+  color: #1e40af;
 }
 
 .auto-stop-info .info-content {
@@ -669,13 +801,13 @@ async function startPump() {
 
 .auto-stop-info .info-content strong {
   display: block;
-  color: #1E40AF;
+  color: #1e40af;
   font-size: 0.875rem;
   margin-bottom: 0.25rem;
 }
 
 .auto-stop-info .info-content p {
-  color: #1E3A8A;
+  color: #1e3a8a;
   font-size: 0.8125rem;
   margin: 0;
   line-height: 1.5;
@@ -696,11 +828,11 @@ async function startPump() {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .pump-info-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .control-buttons {
     width: 100%;
   }

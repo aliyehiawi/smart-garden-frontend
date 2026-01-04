@@ -5,23 +5,21 @@
         <h3>Water Level History Table</h3>
         <p class="subtitle">Complete historical data records</p>
       </div>
-      
+
       <div class="header-actions">
         <!-- Search/Filter -->
         <div class="search-box">
           <span class="search-icon">🔍</span>
-          <input 
-            v-model="searchQuery" 
-            type="text" 
+          <input
+            v-model="searchQuery"
+            type="text"
             placeholder="Search by date, level..."
             @input="handleSearch"
           />
         </div>
-        
+
         <!-- Export Button -->
-        <button @click="exportToCSV" class="btn-export">
-          📥 Export CSV
-        </button>
+        <button @click="exportToCSV" class="btn-export">📥 Export CSV</button>
       </div>
     </div>
 
@@ -63,10 +61,7 @@
               <span class="level-badge">{{ row.waterLevel }}%</span>
             </td>
             <td class="status-cell">
-              <span 
-                class="status-badge" 
-                :class="getStatusClass(row.waterLevel)"
-              >
+              <span class="status-badge" :class="getStatusClass(row.waterLevel)">
                 {{ getStatusText(row.waterLevel) }}
               </span>
             </td>
@@ -80,19 +75,15 @@
       <div class="pagination-info">
         Showing {{ startIndex + 1 }} to {{ endIndex }} of {{ totalElements }} entries
       </div>
-      
+
       <div class="pagination-controls">
-        <button 
-          @click="previousPage" 
-          :disabled="currentPage === 0"
-          class="btn-page"
-        >
+        <button @click="previousPage" :disabled="currentPage === 0" class="btn-page">
           ← Previous
         </button>
-        
+
         <div class="page-numbers">
-          <button 
-            v-for="page in visiblePages" 
+          <button
+            v-for="page in visiblePages"
             :key="page"
             @click="goToPage(page)"
             :class="['btn-page-num', { active: currentPage === page }]"
@@ -100,16 +91,12 @@
             {{ page + 1 }}
           </button>
         </div>
-        
-        <button 
-          @click="nextPage" 
-          :disabled="currentPage >= totalPages - 1"
-          class="btn-page"
-        >
+
+        <button @click="nextPage" :disabled="currentPage >= totalPages - 1" class="btn-page">
           Next →
         </button>
       </div>
-      
+
       <div class="rows-per-page">
         <label>Rows per page:</label>
         <select v-model="rowsPerPage" @change="handleRowsChange">
@@ -175,9 +162,9 @@ const totalPages = computed(() => {
 // Local filtering for search
 const filteredData = computed(() => {
   if (!searchQuery.value) return tableData.value
-  
+
   const query = searchQuery.value.toLowerCase()
-  return tableData.value.filter(row => {
+  return tableData.value.filter((row) => {
     const timestamp = formatTimestamp(row.timestamp).toLowerCase()
     const level = row.waterLevel.toString()
     return timestamp.includes(query) || level.includes(query)
@@ -187,23 +174,23 @@ const filteredData = computed(() => {
 // Local sorting
 const sortedData = computed(() => {
   const data = [...filteredData.value]
-  
+
   data.sort((a, b) => {
     let aVal = a[sortColumn.value]
     let bVal = b[sortColumn.value]
-    
+
     if (sortColumn.value === 'timestamp') {
       aVal = new Date(aVal).getTime()
       bVal = new Date(bVal).getTime()
     }
-    
+
     if (sortDirection.value === 'asc') {
       return aVal > bVal ? 1 : -1
     } else {
       return aVal < bVal ? 1 : -1
     }
   })
-  
+
   return data
 })
 
@@ -235,19 +222,21 @@ const endIndex = computed(() => {
 const visiblePages = computed(() => {
   const pages = []
   const maxVisible = 5
-  const total = searchQuery.value ? Math.ceil(filteredData.value.length / rowsPerPage.value) : totalPages.value
-  
+  const total = searchQuery.value
+    ? Math.ceil(filteredData.value.length / rowsPerPage.value)
+    : totalPages.value
+
   let start = Math.max(0, currentPage.value - Math.floor(maxVisible / 2))
   let end = Math.min(total, start + maxVisible)
-  
+
   if (end - start < maxVisible) {
     start = Math.max(0, end - maxVisible)
   }
-  
+
   for (let i = start; i < end; i++) {
     pages.push(i)
   }
-  
+
   return pages
 })
 
@@ -257,11 +246,11 @@ async function fetchData() {
     console.warn('No device selected')
     return
   }
-  
+
   await sensorsStore.fetchWaterLevelData(currentDeviceId.value, {
     page: currentPage.value,
     size: rowsPerPage.value,
-    sort: 'timestamp,desc'
+    sort: 'timestamp,desc',
   })
 }
 
@@ -314,10 +303,10 @@ async function previousPage() {
 }
 
 async function nextPage() {
-  const maxPage = searchQuery.value 
+  const maxPage = searchQuery.value
     ? Math.ceil(filteredData.value.length / rowsPerPage.value) - 1
     : totalPages.value - 1
-    
+
   if (currentPage.value < maxPage) {
     currentPage.value++
     if (!searchQuery.value) {
@@ -342,37 +331,41 @@ function formatTimestamp(timestamp) {
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-    second: '2-digit'
+    second: '2-digit',
   })
 }
 
 function getStatusClass(level) {
   const min = currentThresholds.value.lowerThreshold
   const max = currentThresholds.value.upperThreshold
-  
-  if (level < min) return 'status-low'
-  if (level > max) return 'status-high'
+
+  // Lower reading = more water (tank full) → HIGH status
+  // Higher reading = less water (tank empty) → LOW status
+  if (level < min) return 'status-high'
+  if (level > max) return 'status-low'
   return 'status-normal'
 }
 
 function getStatusText(level) {
   const min = currentThresholds.value.lowerThreshold
   const max = currentThresholds.value.upperThreshold
-  
-  if (level < min) return 'Low'
-  if (level > max) return 'High'
-  return 'Normal'
+
+  // Lower reading = more water (tank full) → HIGH
+  // Higher reading = less water (tank empty) → LOW
+  if (level < min) return 'HIGH'
+  if (level > max) return 'LOW'
+  return 'NORMAL'
 }
 
 function exportToCSV() {
   const headers = ['Timestamp', 'Water Level (%)', 'Status']
-  const rows = filteredData.value.map(row => [
+  const rows = filteredData.value.map((row) => [
     formatTimestamp(row.timestamp),
     row.waterLevel,
-    getStatusText(row.waterLevel)
+    getStatusText(row.waterLevel),
   ])
-  
-  const csv = [headers, ...rows].map(row => row.join(',')).join('\n')
+
+  const csv = [headers, ...rows].map((row) => row.join(',')).join('\n')
   const blob = new Blob([csv], { type: 'text/csv' })
   const url = window.URL.createObjectURL(blob)
   const link = document.createElement('a')
@@ -389,7 +382,7 @@ function exportToCSV() {
   border-radius: 16px;
   padding: 1.5rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  border: 2px solid #8B5CF6;
+  border: 2px solid #8b5cf6;
   transition: all 0.3s ease;
   position: relative;
   width: 100%;
@@ -403,7 +396,7 @@ function exportToCSV() {
 .table-card:hover {
   box-shadow: 0 8px 20px rgba(139, 92, 246, 0.2);
   transform: translateY(-4px);
-  border-color: #7C3AED;
+  border-color: #7c3aed;
 }
 
 .card-header {
@@ -418,13 +411,13 @@ function exportToCSV() {
 .title-section h3 {
   font-size: 1.25rem;
   font-weight: 700;
-  color: #1F2937;
+  color: #1f2937;
   margin: 0 0 0.25rem 0;
 }
 
 .subtitle {
   font-size: 0.875rem;
-  color: #6B7280;
+  color: #6b7280;
   margin: 0;
 }
 
@@ -440,14 +433,14 @@ function exportToCSV() {
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
-  background: #F9FAFB;
-  border: 2px solid #E5E7EB;
+  background: #f9fafb;
+  border: 2px solid #e5e7eb;
   border-radius: 8px;
   transition: all 0.2s;
 }
 
 .search-box:focus-within {
-  border-color: #8B5CF6;
+  border-color: #8b5cf6;
   background: white;
 }
 
@@ -466,7 +459,7 @@ function exportToCSV() {
 
 .btn-export {
   padding: 0.5rem 1rem;
-  background: linear-gradient(135deg, #8B5CF6, #7C3AED);
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
   color: white;
   border: none;
   border-radius: 8px;
@@ -485,7 +478,7 @@ function exportToCSV() {
 .table-container {
   overflow-x: auto;
   border-radius: 12px;
-  border: 1px solid #E5E7EB;
+  border: 1px solid #e5e7eb;
 }
 
 .data-table {
@@ -495,7 +488,7 @@ function exportToCSV() {
 }
 
 .data-table thead {
-  background: linear-gradient(135deg, #F3F4F6, #E5E7EB);
+  background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
 }
 
 .data-table th {
@@ -503,7 +496,7 @@ function exportToCSV() {
   text-align: left;
   font-weight: 600;
   color: #374151;
-  border-bottom: 2px solid #E5E7EB;
+  border-bottom: 2px solid #e5e7eb;
   white-space: nowrap;
 }
 
@@ -514,7 +507,7 @@ function exportToCSV() {
 }
 
 .data-table th.sortable:hover {
-  background: #E5E7EB;
+  background: #e5e7eb;
 }
 
 .th-content {
@@ -531,7 +524,7 @@ function exportToCSV() {
 
 .data-table td {
   padding: 1rem;
-  border-bottom: 1px solid #F3F4F6;
+  border-bottom: 1px solid #f3f4f6;
 }
 
 .data-row {
@@ -539,19 +532,19 @@ function exportToCSV() {
 }
 
 .data-row:hover {
-  background: #F9FAFB;
+  background: #f9fafb;
 }
 
 .timestamp-cell {
-  color: #6B7280;
+  color: #6b7280;
   font-size: 0.8125rem;
 }
 
 .level-badge {
   display: inline-block;
   padding: 0.375rem 0.75rem;
-  background: linear-gradient(135deg, #DBEAFE, #BFDBFE);
-  color: #1E40AF;
+  background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+  color: #1e40af;
   border-radius: 6px;
   font-weight: 600;
 }
@@ -566,38 +559,41 @@ function exportToCSV() {
 }
 
 .status-normal {
-  background: #D1FAE5;
-  color: #065F46;
+  background: #dbeafe;
+  color: #1e40af;
 }
 
 .status-low {
-  background: #FEF3C7;
-  color: #92400E;
+  background: #fee2e2;
+  color: #991b1b;
 }
 
 .status-high {
-  background: #FEE2E2;
-  color: #991B1B;
+  background: #d1fae5;
+  color: #065f46;
 }
 
-.loading-state, .empty-state {
+.loading-state,
+.empty-state {
   text-align: center;
   padding: 3rem 1rem !important;
-  color: #9CA3AF;
+  color: #9ca3af;
 }
 
 .spinner {
   width: 40px;
   height: 40px;
-  border: 4px solid #E5E7EB;
-  border-top-color: #8B5CF6;
+  border: 4px solid #e5e7eb;
+  border-top-color: #8b5cf6;
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin: 0 auto 1rem;
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .empty-icon {
@@ -622,7 +618,7 @@ function exportToCSV() {
 
 .pagination-info {
   font-size: 0.875rem;
-  color: #6B7280;
+  color: #6b7280;
 }
 
 .pagination-controls {
@@ -633,7 +629,7 @@ function exportToCSV() {
 
 .btn-page {
   padding: 0.5rem 1rem;
-  border: 2px solid #E5E7EB;
+  border: 2px solid #e5e7eb;
   background: white;
   border-radius: 8px;
   font-size: 0.875rem;
@@ -644,8 +640,8 @@ function exportToCSV() {
 }
 
 .btn-page:hover:not(:disabled) {
-  border-color: #8B5CF6;
-  color: #8B5CF6;
+  border-color: #8b5cf6;
+  color: #8b5cf6;
 }
 
 .btn-page:disabled {
@@ -662,7 +658,7 @@ function exportToCSV() {
   width: 40px;
   height: 40px;
   padding: 0;
-  border: 2px solid #E5E7EB;
+  border: 2px solid #e5e7eb;
   background: white;
   border-radius: 8px;
   font-size: 0.875rem;
@@ -673,13 +669,13 @@ function exportToCSV() {
 }
 
 .btn-page-num:hover {
-  border-color: #8B5CF6;
-  color: #8B5CF6;
+  border-color: #8b5cf6;
+  color: #8b5cf6;
 }
 
 .btn-page-num.active {
-  background: linear-gradient(135deg, #8B5CF6, #7C3AED);
-  border-color: #8B5CF6;
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  border-color: #8b5cf6;
   color: white;
 }
 
@@ -688,12 +684,12 @@ function exportToCSV() {
   align-items: center;
   gap: 0.5rem;
   font-size: 0.875rem;
-  color: #6B7280;
+  color: #6b7280;
 }
 
 .rows-per-page select {
   padding: 0.5rem;
-  border: 2px solid #E5E7EB;
+  border: 2px solid #e5e7eb;
   border-radius: 8px;
   background: white;
   color: #374151;
@@ -705,33 +701,33 @@ function exportToCSV() {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .header-actions {
     flex-direction: column;
     width: 100%;
   }
-  
+
   .search-box {
     width: 100%;
   }
-  
+
   .search-box input {
     width: 100%;
   }
-  
+
   .btn-export {
     width: 100%;
   }
-  
+
   .pagination {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .pagination-controls {
     justify-content: center;
   }
-  
+
   .rows-per-page {
     justify-content: center;
   }

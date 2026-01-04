@@ -1,7 +1,7 @@
 <template>
   <div class="main-layout">
     <Sidebar />
-    
+
     <div class="main-content">
       <!-- Top Bar with User Info -->
       <div class="top-bar">
@@ -10,9 +10,7 @@
           <span class="user-role" :class="roleClass">
             {{ authStore.user?.role }}
           </span>
-          <button @click="handleLogout" class="btn-logout">
-            Logout
-          </button>
+          <button @click="handleLogout" class="btn-logout">Logout</button>
         </div>
       </div>
 
@@ -28,12 +26,8 @@
         <h3>Confirm Logout</h3>
         <p>Are you sure you want to logout?</p>
         <div class="modal-actions">
-          <button @click="showLogoutModal = false" class="btn-cancel">
-            Cancel
-          </button>
-          <button @click="confirmLogout" class="btn-confirm">
-            Logout
-          </button>
+          <button @click="showLogoutModal = false" class="btn-cancel">Cancel</button>
+          <button @click="confirmLogout" class="btn-confirm">Logout</button>
         </div>
       </div>
     </div>
@@ -69,6 +63,7 @@ function confirmLogout() {
 .main-layout {
   display: flex;
   min-height: 100vh;
+  width: 100%;
 }
 
 .main-content {
@@ -80,7 +75,7 @@ function confirmLogout() {
 .top-bar {
   background: white;
   padding: 1rem 2rem;
-  border-bottom: 1px solid #E5E7EB;
+  border-bottom: 1px solid #e5e7eb;
   display: flex;
   justify-content: flex-end;
 }
@@ -105,18 +100,18 @@ function confirmLogout() {
 }
 
 .role-admin {
-  background: #DBEAFE;
-  color: #1E40AF;
+  background: #dbeafe;
+  color: #1e40af;
 }
 
 .role-user {
-  background: #D1FAE5;
-  color: #065F46;
+  background: #d1fae5;
+  color: #065f46;
 }
 
 .btn-logout {
   padding: 0.5rem 1rem;
-  background: #EF4444;
+  background: #ef4444;
   color: white;
   border: none;
   border-radius: 8px;
@@ -127,7 +122,7 @@ function confirmLogout() {
 }
 
 .btn-logout:hover {
-  background: #DC2626;
+  background: #dc2626;
 }
 
 /* Custom Logout Modal */
@@ -155,14 +150,14 @@ function confirmLogout() {
 
 .modal-content h3 {
   margin: 0 0 1rem 0;
-  color: #1F2937;
+  color: #1f2937;
   font-size: 1.25rem;
   font-weight: 600;
 }
 
 .modal-content p {
   margin: 0 0 1.5rem 0;
-  color: #6B7280;
+  color: #6b7280;
   font-size: 1rem;
 }
 
@@ -174,7 +169,7 @@ function confirmLogout() {
 
 .btn-cancel {
   padding: 0.625rem 1.25rem;
-  background: #F3F4F6;
+  background: #f3f4f6;
   color: #374151;
   border: none;
   border-radius: 8px;
@@ -185,12 +180,12 @@ function confirmLogout() {
 }
 
 .btn-cancel:hover {
-  background: #E5E7EB;
+  background: #e5e7eb;
 }
 
 .btn-confirm {
   padding: 0.625rem 1.25rem;
-  background: #EF4444;
+  background: #ef4444;
   color: white;
   border: none;
   border-radius: 8px;
@@ -201,7 +196,7 @@ function confirmLogout() {
 }
 
 .btn-confirm:hover {
-  background: #DC2626;
+  background: #dc2626;
 }
 
 .page-content-wrapper {
@@ -209,7 +204,7 @@ function confirmLogout() {
   width: 100%;
   padding: 2rem 3rem;
   overflow-y: auto;
-  background: #F9FAFB;
+  background: #f9fafb;
 }
 
 .page-content-wrapper > .dashboard-container,

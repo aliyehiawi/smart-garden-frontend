@@ -117,7 +117,15 @@ export const thresholdAPI = {
    */
   get: async (deviceId) => {
     const response = await apiClient.get(`/devices/${deviceId}/thresholds`)
-    return response.data
+    const data = response.data
+
+    // Transform backend response to frontend format
+    // Backend: { minThreshold: number, maxThreshold: number }
+    // Frontend: { lowerThreshold: number, upperThreshold: number }
+    return {
+      lowerThreshold: data.minThreshold,
+      upperThreshold: data.maxThreshold,
+    }
   },
 
   /**
@@ -127,8 +135,20 @@ export const thresholdAPI = {
    * @returns {Promise} Updated thresholds
    */
   update: async (deviceId, thresholds) => {
-    const response = await apiClient.put(`/devices/${deviceId}/thresholds`, thresholds)
-    return response.data
+    // Transform frontend format to backend format
+    const backendFormat = {
+      minThreshold: thresholds.lowerThreshold,
+      maxThreshold: thresholds.upperThreshold,
+    }
+
+    const response = await apiClient.put(`/devices/${deviceId}/thresholds`, backendFormat)
+    const data = response.data
+
+    // Transform response back to frontend format
+    return {
+      lowerThreshold: data.minThreshold,
+      upperThreshold: data.maxThreshold,
+    }
   },
 }
 
@@ -152,7 +172,17 @@ export const pumpAPI = {
    */
   getStatus: async (deviceId) => {
     const response = await apiClient.get(`/devices/${deviceId}/pump/status`)
-    return response.data
+    const data = response.data
+
+    // Transform backend response to frontend format
+    // Backend: { pumpStatus: 'ON'/'OFF'/'UNKNOWN', lastUpdate: timestamp }
+    // Frontend: { isRunning: boolean, lastStartedAt: timestamp, manualControl: boolean }
+    return {
+      isRunning: data.pumpStatus === 'ON',
+      lastStartedAt: data.lastUpdate,
+      lastStoppedAt: data.pumpStatus === 'OFF' ? data.lastUpdate : null,
+      manualControl: false, // Default to auto mode, will be updated via WebSocket if needed
+    }
   },
 }
 
@@ -170,7 +200,6 @@ export const waterLevelAPI = {
     return response.data
   },
 }
-
 
 // USER MANAGEMENT ENDPOINTS (Admin Only)
 
