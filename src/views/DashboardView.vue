@@ -2,7 +2,7 @@
   <MainLayout>
     <div class="dashboard-container">
 
-      <!-- HEADER - APPEARS SECOND -->
+      <!-- HEADER -->
       <div class="dashboard-header">
         <div class="header-container">
           <div class="title-section">
@@ -14,7 +14,7 @@
         </div>
       </div>
 
-      <!-- DEVICE LIST - APPEARS FIRST -->
+      <!-- DEVICE LIST -->
       <DeviceList 
         v-if="authStore.user" 
         @pump-control-selected="handlePumpControlSelected"
@@ -407,7 +407,6 @@ function clearSearch() {
 }
 
 .device-list-section {
-  order: -1; /* Force device list to appear first */
   margin-bottom: 1.5rem;
   background: white;
   border-radius: 12px;

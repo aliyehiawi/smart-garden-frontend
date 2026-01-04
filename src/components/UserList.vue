@@ -179,6 +179,10 @@ const actionLoading = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
 
+const filteredUsers = computed(() => {
+  return users.value
+})
+
 // Lifecycle
 onMounted(() => {
   fetchUsers()
@@ -192,6 +196,8 @@ async function fetchUsers() {
   try {
     const data = await userAPI.getAll()
     users.value = Array.isArray(data) ? data : data.content || []
+    console.log('Total users loaded:', users.value.length)
+    console.log('Users:', users.value)
   } catch (error) {
     console.error('Failed to fetch users:', error)
     showError('Failed to load users, Please try again')

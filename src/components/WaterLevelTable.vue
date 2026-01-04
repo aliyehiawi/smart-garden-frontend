@@ -36,7 +36,7 @@
             </th>
             <th @click="sortBy('waterLevel')" class="sortable">
               <div class="th-content">
-                <span>Water Level (%)</span>
+                <span>Water Level (cm)</span>
                 <span class="sort-icon">{{ getSortIcon('waterLevel') }}</span>
               </div>
             </th>
@@ -58,7 +58,7 @@
           <tr v-else v-for="row in paginatedData" :key="row.id" class="data-row">
             <td class="timestamp-cell">{{ formatTimestamp(row.timestamp) }}</td>
             <td class="level-cell">
-              <span class="level-badge">{{ row.waterLevel }}%</span>
+              <span class="level-badge">{{ row.waterLevel }}cm</span>
             </td>
             <td class="status-cell">
               <span class="status-badge" :class="getStatusClass(row.waterLevel)">
@@ -129,7 +129,7 @@ const { thresholds } = storeToRefs(thresholdsStore)
 const searchQuery = ref('')
 const sortColumn = ref('timestamp')
 const sortDirection = ref('desc')
-const currentPage = ref(0) // Backend uses 0-based pagination
+const currentPage = ref(0) 
 const rowsPerPage = ref(20)
 
 // Get current device data from store
