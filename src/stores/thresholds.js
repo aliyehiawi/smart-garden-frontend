@@ -1,12 +1,12 @@
-import { defineStore } from 'pinia';
-import { ref } from 'vue';
-import { thresholdAPI } from '@/utils/api';
+import { defineStore } from 'pinia'
+import { ref } from 'vue'
+import { thresholdAPI } from '@/utils/api'
 
 export const useThresholdsStore = defineStore('thresholds', () => {
   // State
-  const thresholds = ref({}); // Map of deviceId, upperThreshold, lowerThreshold 
-  const loading = ref(false);
-  const error = ref(null);
+  const thresholds = ref({}) // Map of deviceId, upperThreshold, lowerThreshold
+  const loading = ref(false)
+  const error = ref(null)
 
   // Actions
 
@@ -15,41 +15,49 @@ export const useThresholdsStore = defineStore('thresholds', () => {
    * @param {number} deviceId
    */
   async function fetchThresholds(deviceId) {
-    loading.value = true;
-    error.value = null;
+    loading.value = true
+    error.value = null
 
     try {
-      const data = await thresholdAPI.get(deviceId);
-      thresholds.value[deviceId] = data;
-      return { success: true, data };
+      const data = await thresholdAPI.get(deviceId)
+      // Use spread operator to trigger Vue reactivity
+      thresholds.value = {
+        ...thresholds.value,
+        [deviceId]: data,
+      }
+      return { success: true, data }
     } catch (err) {
-      const errorMessage = err.response?.data?.message || 'Failed to fetch thresholds';
-      error.value = errorMessage;
-      return { success: false, error: errorMessage };
+      const errorMessage = err.response?.data?.message || 'Failed to fetch thresholds'
+      error.value = errorMessage
+      return { success: false, error: errorMessage }
     } finally {
-      loading.value = false;
+      loading.value = false
     }
   }
 
   /**
    * Update thresholds for a device (Admin only)
    * @param {number} deviceId
-   * @param {Object} newThresholds upperThreshold, lowerThreshold 
+   * @param {Object} newThresholds upperThreshold, lowerThreshold
    */
   async function updateThresholds(deviceId, newThresholds) {
-    loading.value = true;
-    error.value = null;
+    loading.value = true
+    error.value = null
 
     try {
-      const data = await thresholdAPI.update(deviceId, newThresholds);
-      thresholds.value[deviceId] = data;
-      return { success: true, data };
+      const data = await thresholdAPI.update(deviceId, newThresholds)
+      // Use spread operator to trigger Vue reactivity
+      thresholds.value = {
+        ...thresholds.value,
+        [deviceId]: data,
+      }
+      return { success: true, data }
     } catch (err) {
-      const errorMessage = err.response?.data?.message || 'Failed to update thresholds';
-      error.value = errorMessage;
-      return { success: false, error: errorMessage };
+      const errorMessage = err.response?.data?.message || 'Failed to update thresholds'
+      error.value = errorMessage
+      return { success: false, error: errorMessage }
     } finally {
-      loading.value = false;
+      loading.value = false
     }
   }
 
@@ -58,7 +66,7 @@ export const useThresholdsStore = defineStore('thresholds', () => {
    * @param {number} deviceId
    */
   function getThresholds(deviceId) {
-    return thresholds.value[deviceId] || null;
+    return thresholds.value[deviceId] || null
   }
 
   /**
@@ -67,13 +75,17 @@ export const useThresholdsStore = defineStore('thresholds', () => {
    * @param {Object} newThresholds
    */
   function setThresholds(deviceId, newThresholds) {
-    thresholds.value[deviceId] = newThresholds;
+    // Use spread operator to trigger Vue reactivity
+    thresholds.value = {
+      ...thresholds.value,
+      [deviceId]: newThresholds,
+    }
   }
 
   // Clear all thresholds
   function clearThresholds() {
-    thresholds.value = {};
-    error.value = null;
+    thresholds.value = {}
+    error.value = null
   }
 
   /**
@@ -81,7 +93,8 @@ export const useThresholdsStore = defineStore('thresholds', () => {
    * @param {number} deviceId
    */
   function removeDeviceThresholds(deviceId) {
-    delete thresholds.value[deviceId];
+    const { [deviceId]: removed, ...rest } = thresholds.value
+    thresholds.value = rest
   }
 
   return {
@@ -89,7 +102,7 @@ export const useThresholdsStore = defineStore('thresholds', () => {
     thresholds,
     loading,
     error,
-    
+
     // Actions
     fetchThresholds,
     updateThresholds,
@@ -97,5 +110,5 @@ export const useThresholdsStore = defineStore('thresholds', () => {
     setThresholds,
     clearThresholds,
     removeDeviceThresholds,
-  };
-});
+  }
+})

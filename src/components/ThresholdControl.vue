@@ -214,13 +214,23 @@ const currentPumpStatus = computed(() => {
 })
 
 const currentMin = computed(() => {
-  if (!currentThresholds.value) return null
-  return currentThresholds.value.minThreshold ?? currentThresholds.value.lowerThreshold ?? null
+  if (!currentThresholds.value) return lowerThreshold.value ?? 5
+  return (
+    currentThresholds.value.minThreshold ??
+    currentThresholds.value.lowerThreshold ??
+    lowerThreshold.value ??
+    5
+  )
 })
 
 const currentMax = computed(() => {
-  if (!currentThresholds.value) return null
-  return currentThresholds.value.maxThreshold ?? currentThresholds.value.upperThreshold ?? null
+  if (!currentThresholds.value) return upperThreshold.value ?? 20
+  return (
+    currentThresholds.value.maxThreshold ??
+    currentThresholds.value.upperThreshold ??
+    upperThreshold.value ??
+    20
+  )
 })
 
 const currentStatus = computed(() => {
@@ -337,7 +347,6 @@ onMounted(async () => {
 })
 
 watch(currentDeviceId, async (newDeviceId, oldDeviceId) => {
-  console.log('🔄 Device ID changed in ThresholdControl:', oldDeviceId, '→', newDeviceId)
   if (newDeviceId) {
     // Reset to default values instead of null
     lowerThreshold.value = 5
@@ -358,12 +367,10 @@ watch([currentMin, currentMax], ([newMin, newMax]) => {
 
 async function loadThresholds() {
   if (!currentDeviceId.value) {
-    console.warn('⚠️ Cannot load thresholds: No device selected')
     return
   }
 
   loading.value = true
-  console.log('Loading thresholds for device:', currentDeviceId.value)
 
   try {
     const response = await thresholdAPI.get(currentDeviceId.value)
@@ -381,11 +388,9 @@ async function loadThresholds() {
         lowerThreshold: minValue,
         upperThreshold: maxValue,
       })
-
-      console.log('✅ Thresholds loaded successfully:', { min: minValue, max: maxValue })
     }
   } catch (error) {
-    console.error('❌ Failed to load thresholds:', error)
+    console.error('Failed to load thresholds:', error)
     // Set default values so form is still usable
     lowerThreshold.value = lowerThreshold.value ?? 5
     upperThreshold.value = upperThreshold.value ?? 20
@@ -412,29 +417,33 @@ async function submitThresholds() {
   loading.value = true
   feedbackMessage.value = ''
 
-  console.log('Saving thresholds for device:', currentDeviceId.value, {
-    min: lowerThreshold.value,
-    max: upperThreshold.value,
-  })
-
   try {
     const response = await thresholdAPI.update(currentDeviceId.value, {
       lowerThreshold: lowerThreshold.value,
       upperThreshold: upperThreshold.value,
     })
 
-    thresholdsStore.setThresholds(currentDeviceId.value, {
-      minThreshold: response.minThreshold,
-      maxThreshold: response.maxThreshold,
-      lowerThreshold: response.minThreshold,
-      upperThreshold: response.maxThreshold,
-    })
+    // API returns lowerThreshold and upperThreshold
+    const minValue = response.minThreshold ?? response.lowerThreshold
+    const maxValue = response.maxThreshold ?? response.upperThreshold
+
+    // Update local refs FIRST to trigger UI reactivity
+    lowerThreshold.value = minValue
+    upperThreshold.value = maxValue
+
+    // Then update store with new values
+    const newThresholds = {
+      minThreshold: minValue,
+      maxThreshold: maxValue,
+      lowerThreshold: minValue,
+      upperThreshold: maxValue,
+    }
+
+    thresholdsStore.setThresholds(currentDeviceId.value, newThresholds)
 
     feedbackMessage.value =
       'Thresholds updated successfully. Automatic pump control will use these new values via MQTT.'
     feedbackType.value = 'success'
-
-    console.log('Thresholds saved successfully:', response)
 
     setTimeout(() => {
       feedbackMessage.value = ''
@@ -942,6 +951,7 @@ async function submitThresholds() {
 .feedback-message.success {
   background: #d1fae5;
   border: 2px solid #10b981;
+  color: #065f46;
 }
 
 .feedback-message.error {
