@@ -53,6 +53,7 @@ The **IoT Smart Garden** is a comprehensive web-based monitoring and control sys
 ### Technology Stack
 
 **Frontend:**
+
 - Vue.js 3 (Composition API)
 - Pinia (State Management)
 - Vue Router (Navigation)
@@ -83,11 +84,13 @@ This README will guide you through:
 Before starting, ensure your system meets these requirements:
 
 #### 1. **Node.js** (Required)
+
 - **Minimum Version:** `18.x` or higher
 - **Recommended Version:** `20.x LTS` (Long Term Support)
 - **Why:** Vue 3 and modern build tools require Node.js 18+
 
 **Check your current version:**
+
 ```bash
 node --version
 ```
@@ -95,6 +98,7 @@ node --version
 **If you see:** `v16.x.x` or lower → **You must upgrade!**
 
 **Download Node.js:**
+
 - Official Website: https://nodejs.org/
 - Download the **LTS version** (recommended for most users)
 - Windows: Download the `.msi` installer
@@ -102,6 +106,7 @@ node --version
 - Linux: Use your package manager or nvm (Node Version Manager)
 
 **Using nvm (Recommended for developers):**
+
 ```bash
 # Install nvm (Linux/macOS)
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
@@ -114,24 +119,29 @@ nvm use --lts
 ```
 
 #### 2. **npm** (Comes with Node.js)
+
 - **Minimum Version:** `9.x` or higher
 - **Comes bundled with Node.js** - no separate installation needed
 
 **Check your version:**
+
 ```bash
 npm --version
 ```
 
 #### 3. **Git** (Required for cloning)
+
 - **Any recent version**
 - Download: https://git-scm.com/downloads
 
 **Check your version:**
+
 ```bash
 git --version
 ```
 
 #### 4. **Code Editor** (Recommended)
+
 - **Visual Studio Code** (Highly Recommended)
   - Download: https://code.visualstudio.com/
   - Extensions to install:
@@ -141,6 +151,7 @@ git --version
     - Vue VSCode Snippets
 
 #### 5. **Web Browser** (For testing)
+
 - **Chrome** (Recommended) or **Firefox**
 - Modern browser with WebSocket support
 
@@ -152,7 +163,7 @@ git --version
 
 ```bash
 # Clone the frontend repository
-git clone 
+git clone
 
 # Navigate to the project directory
 cd iot-smart-garden-frontend
@@ -167,6 +178,7 @@ npm install
 ```
 
 **What this does:**
+
 - Downloads Vue.js and all its dependencies
 - Installs Pinia for state management
 - Installs Vue Router for navigation
@@ -175,6 +187,7 @@ npm install
 - Downloads all development tools (Vite, ESLint, etc.)
 
 **Expected output:**
+
 ```
 added 847 packages, and audited 848 packages in 45s
 
@@ -187,16 +200,21 @@ found 0 vulnerabilities
 **If you see errors:**
 
 #### Error: "npm ERR! code ENOENT"
+
 **Solution:** Make sure you're in the correct directory where `package.json` exists
 
 #### Error: "npm ERR! ERESOLVE unable to resolve dependency tree"
+
 **Solution:** Try with legacy peer dependencies:
+
 ```bash
 npm install --legacy-peer-deps
 ```
 
 #### Error: "gyp ERR! stack Error: not found: python"
+
 **Solution:** Install Python (some packages need it for compilation)
+
 ```bash
 # Windows (using Chocolatey)
 choco install python
@@ -209,10 +227,13 @@ sudo apt-get install python3
 ```
 
 #### Error: "node: command not found"
+
 **Solution:** Node.js is not installed or not in PATH. Reinstall Node.js
 
 #### Error: Node version too old
+
 **Solution:** Upgrade Node.js to version 18 or higher:
+
 ```bash
 # Using nvm
 nvm install 20
@@ -247,6 +268,7 @@ VITE_DEBUG=true
 ```
 
 **Important Notes:**
+
 - Replace `localhost:8080` with your actual backend server URL
 - For production, use your production domain (e.g., `https://api.yourdomain.com`)
 - The `VITE_` prefix is required for Vite to expose these variables
@@ -258,6 +280,7 @@ npm run dev
 ```
 
 **Expected output:**
+
 ```
   VITE v5.0.0  ready in 1234 ms
 
@@ -266,12 +289,14 @@ npm run dev
 ```
 
 **What this does:**
+
 - Starts a local development server
 - Enables hot module replacement (HMR) - changes reflect instantly
 - Opens your default browser automatically
 - Watches files for changes
 
 **Access the application:**
+
 - Open your browser
 - Navigate to `http://localhost:5173/`
 - You should see the login page
@@ -279,6 +304,7 @@ npm run dev
 **Default port:** `5173`
 
 **To use a different port:**
+
 ```bash
 npm run dev -- --port 3000
 ```
@@ -294,6 +320,7 @@ npm run build
 ```
 
 **What this does:**
+
 - Creates optimized production files
 - Minifies JavaScript and CSS
 - Optimizes images and assets
@@ -302,6 +329,7 @@ npm run build
 **Output location:** `./dist/`
 
 **Deploy the dist folder to:**
+
 - Netlify
 - Vercel
 - AWS S3 + CloudFront
@@ -310,6 +338,7 @@ npm run build
 - Any static hosting service
 
 **Example: Deploy to Netlify**
+
 ```bash
 # Install Netlify CLI
 npm install -g netlify-cli
@@ -363,6 +392,7 @@ iot-smart-garden-frontend/
 ## Available Scripts
 
 ### Development
+
 ```bash
 # Start development server with hot reload
 npm run dev
@@ -375,6 +405,7 @@ npm run dev -- --host
 ```
 
 ### Building
+
 ```bash
 # Build for production
 npm run build
@@ -384,6 +415,7 @@ npm run preview
 ```
 
 ### Code Quality
+
 ```bash
 # Lint code (check for errors)
 npm run lint
@@ -402,11 +434,13 @@ npm run type-check
 ### Issue: Port Already in Use
 
 **Error:**
+
 ```
 Port 5173 is already in use
 ```
 
 **Solution 1:** Kill the process using the port
+
 ```bash
 # Windows
 netstat -ano | findstr :5173
@@ -417,6 +451,7 @@ lsof -ti:5173 | xargs kill -9
 ```
 
 **Solution 2:** Use a different port
+
 ```bash
 npm run dev -- --port 3000
 ```
@@ -426,11 +461,13 @@ npm run dev -- --port 3000
 ### Issue: "Cannot find module 'vue'"
 
 **Error:**
+
 ```
 Error: Cannot find module 'vue'
 ```
 
 **Solution:**
+
 ```bash
 # Delete node_modules and package-lock.json
 rm -rf node_modules package-lock.json
@@ -444,17 +481,20 @@ npm install
 ### Issue: API Connection Failed
 
 **Error in console:**
+
 ```
 Network Error: Failed to fetch
 ```
 
 **Checklist:**
+
 1. Is the backend server running?
 2. Is the backend URL correct in `.env`?
 3. Check CORS settings on backend
 4. Check firewall settings
 
 **Test backend connection:**
+
 ```bash
 # Test if backend is responding
 curl http://localhost:8080/api/health
@@ -468,11 +508,13 @@ http://localhost:8080/api/health
 ### Issue: WebSocket Connection Failed
 
 **Error in console:**
+
 ```
 WebSocket connection failed
 ```
 
 **Solution:**
+
 1. Verify WebSocket URL in `.env`
 2. Ensure backend WebSocket endpoint is enabled
 3. Check if proxy/firewall is blocking WebSocket connections
@@ -513,11 +555,13 @@ yarn install
 ### Issue: Permission Denied (EACCES)
 
 **Error:**
+
 ```
 npm ERR! Error: EACCES: permission denied
 ```
 
 **Solution (Linux/macOS):**
+
 ```bash
 # Fix npm permissions
 sudo chown -R $USER:$USER ~/.npm
@@ -527,6 +571,7 @@ sudo chown -R $USER:$USER node_modules
 ```
 
 **Solution (Windows):**
+
 - Run Command Prompt/PowerShell as Administrator
 - Or change npm global directory to user folder
 
@@ -550,18 +595,21 @@ Password: admin123
 ## Additional Resources
 
 ### Documentation
+
 - Vue.js Guide: https://vuejs.org/guide/
 - Pinia Documentation: https://pinia.vuejs.org/
 - Vite Guide: https://vitejs.dev/guide/
 - Vue Router: https://router.vuejs.org/
 
 ### Getting Help
+
 - Check the browser console for errors (F12 → Console)
 - Check the network tab for API issues (F12 → Network)
 - Read error messages carefully
 - Search for similar issues on Stack Overflow
 
 ### Development Tools
+
 - Vue DevTools: https://devtools.vuejs.org/
   - Chrome Extension: Install from Chrome Web Store
   - Inspect Vue components, state, and events
@@ -571,6 +619,7 @@ Password: admin123
 ## Contributing
 
 ### Code Style
+
 - Use Composition API (not Options API)
 - Follow Vue.js style guide: https://vuejs.org/style-guide/
 - Use meaningful variable and function names
@@ -578,6 +627,7 @@ Password: admin123
 - Keep components small and focused
 
 ### Commit Messages
+
 ```bash
 # Format
 type(scope): description
@@ -588,15 +638,7 @@ fix(auth): resolve login token expiration issue
 docs(readme): update installation instructions
 ```
 
----
-
-## License
-
-[Your License Here - e.g., MIT]
-
----
-
-## Quick Start 
+## Quick Start
 
 1- Node.js 18+ installed (`node --version`)
 2- npm 9+ installed (`npm --version`)
