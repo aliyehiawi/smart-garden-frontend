@@ -309,23 +309,11 @@ async function fetchPumpStatus() {
   try {
     const response = await pumpAPI.getStatus(props.deviceId)
 
-    const previousRunningState = pumpStatus.value.isRunning
-
     // Update pump status from backend response
     pumpStatus.value = {
       isRunning: response.isRunning || false,
       mode: response.mode || 'AUTO',
       lastUpdate: response.lastUpdate || new Date().toISOString(),
-    }
-
-    // If pump just stopped, fetch latest sensor reading
-    if (previousRunningState && !pumpStatus.value.isRunning) {
-      console.log('Pump just stopped, fetching latest sensor data...')
-      await sensorsStore.fetchWaterLevelData(props.deviceId, {
-        page: 0,
-        size: 1,
-        sort: 'timestamp,desc',
-      })
     }
 
     // Start timer if pump is running
