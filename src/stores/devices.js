@@ -134,12 +134,12 @@ export const useDevicesStore = defineStore('devices', () => {
    */
   async function startPump(deviceId) {
     try {
-      const result = await pumpAPI.start(deviceId)
+      await pumpAPI.start(deviceId)
 
       // Refresh pump status after starting
       await fetchPumpStatus(deviceId)
 
-      return { success: true, message: result.message }
+      return { success: true }
     } catch (err) {
       const errorMessage = err.response?.data?.message || 'Failed to start pump'
       return { success: false, error: errorMessage }

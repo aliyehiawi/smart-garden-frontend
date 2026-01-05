@@ -419,8 +419,8 @@ async function submitThresholds() {
 
   try {
     const response = await thresholdAPI.update(currentDeviceId.value, {
-      minThreshold: lowerThreshold.value,
-      maxThreshold: upperThreshold.value,
+      lowerThreshold: lowerThreshold.value,
+      upperThreshold: upperThreshold.value,
     })
 
     thresholdsStore.setThresholds(currentDeviceId.value, {
