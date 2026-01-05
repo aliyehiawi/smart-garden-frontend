@@ -343,7 +343,7 @@ export class WebSocketClient {
         const data = JSON.parse(message.body)
         callback(data)
       } catch (error) {
-        console.error('Error parsing WebSocket message:', error)
+        console.error('Error parsing WebSocket message:', error, message.body)
       }
     })
 

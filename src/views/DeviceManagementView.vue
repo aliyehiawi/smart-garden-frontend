@@ -74,21 +74,10 @@ async function handlePumpControlSelected(device) {
     // Subscribe to device updates for real-time data
     sensorsStore.subscribeToDevice(device.id, {
       onSensorData: (data) => {
-        console.log('New sensor data received:', data)
+        // Sensor data received via WebSocket
       },
-      onPumpStatus: async (status) => {
-        console.log('Pump status updated:', status)
+      onPumpStatus: (status) => {
         devicesStore.updatePumpStatus(device.id, status)
-
-        // When pump stops, fetch latest sensor reading to update the display
-        if (!status.isRunning) {
-          console.log('Pump stopped, fetching latest sensor data...')
-          await sensorsStore.fetchWaterLevelData(device.id, {
-            page: 0,
-            size: 1,
-            sort: 'timestamp,desc',
-          })
-        }
       },
     })
 

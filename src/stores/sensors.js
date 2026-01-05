@@ -131,30 +131,46 @@ export const useSensorsStore = defineStore('sensors', () => {
   function performSubscription(deviceId, callbacks) {
     const subscriptionId = wsClient.subscribeToDevice(deviceId, (message) => {
       // Handle different message types from WebSocket
-      // Backend sends: type: 'SENSOR_DATA' / 'PUMP_STATUS' / 'THRESHOLD_UPDATE', data: {...}
+      // Backend sends: type: 'sensor_update' / 'pump_status' / 'threshold_updated'
+      // Message format: { type: string, deviceId: number, timestamp: string, waterLevel: number, pumpStatus: string }
 
-      if (message.type === 'SENSOR_DATA') {
-        updateLatestReading(deviceId, message.data)
-        if (callbacks.onSensorData) {
-          callbacks.onSensorData(message.data)
+      if (message.type === 'sensor_update') {
+        // Update latest sensor reading
+        const sensorData = {
+          waterLevel: message.waterLevel,
+          timestamp: message.timestamp,
+          pumpStatus: message.pumpStatus,
         }
-      } else if (message.type === 'PUMP_STATUS') {
-        // Transform backend format to frontend format
-        // Backend: { pumpStatus: 'ON'/'OFF'/'UNKNOWN' }
-        // Frontend: { isRunning: boolean, manualControl: boolean, lastStartedAt: timestamp }
+
+        updateLatestReading(deviceId, sensorData)
+
+        if (callbacks.onSensorData) {
+          callbacks.onSensorData(sensorData)
+        }
+
+        // Also check if pump status changed and trigger pump status callback
+        if (callbacks.onPumpStatus && message.pumpStatus) {
+          const transformedStatus = {
+            isRunning: message.pumpStatus === 'ON',
+            manualControl: false,
+            lastUpdate: message.timestamp,
+          }
+          callbacks.onPumpStatus(transformedStatus)
+        }
+      } else if (message.type === 'pump_status') {
+        // Dedicated pump status message (if backend sends these separately)
         const transformedStatus = {
-          isRunning: message.data.pumpStatus === 'ON',
-          manualControl: message.data.manualControl ?? false,
-          lastStartedAt: message.data.pumpStatus === 'ON' ? new Date().toISOString() : null,
-          lastStoppedAt: message.data.pumpStatus === 'OFF' ? new Date().toISOString() : null,
+          isRunning: message.pumpStatus === 'ON',
+          manualControl: message.manualControl ?? false,
+          lastUpdate: message.timestamp || new Date().toISOString(),
         }
 
         if (callbacks.onPumpStatus) {
           callbacks.onPumpStatus(transformedStatus)
         }
-      } else if (message.type === 'THRESHOLD_UPDATE') {
+      } else if (message.type === 'threshold_updated') {
         if (callbacks.onThresholdUpdate) {
-          callbacks.onThresholdUpdate(message.data)
+          callbacks.onThresholdUpdate(message)
         }
       }
     })
